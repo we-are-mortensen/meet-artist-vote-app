@@ -58,6 +58,7 @@ export default function Page() {
       <div>
         Welcome to Pretty Colors! This is a contrived demo add-on that lets you
         look at an animation involving your favorite color.
+        {CLOUD_PROJECT_NUMBER}
       </div>
       <label htmlFor="starting-color">
         Pick a color you like. Everyone will see this:

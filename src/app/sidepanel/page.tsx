@@ -37,9 +37,32 @@ export default function Page() {
   const predefinedLists = (predefinedListsData as PredefinedListsData).lists;
 
   /**
-   * Gets the poll options based on current selection
+   * Gets the poll options based on current selection (for preview, no validation errors)
    */
-  function getPollOptions(): PollOption[] | null {
+  function getPreviewOptions(): PollOption[] | null {
+    if (optionsSource === 'predefined') {
+      const selectedList = predefinedLists.find(list => list.id === selectedListId);
+      if (!selectedList) return null;
+      return stringsToPollOptions(selectedList.options);
+    } else {
+      // Custom options
+      if (!customOptionsText.trim()) {
+        return null;
+      }
+
+      const validation = validateCustomOptions(customOptionsText);
+      if (!validation.valid) {
+        return null;
+      }
+
+      return parseCustomOptions(customOptionsText);
+    }
+  }
+
+  /**
+   * Gets the poll options and validates (sets error state if invalid)
+   */
+  function getPollOptionsWithValidation(): PollOption[] | null {
     if (optionsSource === 'predefined') {
       const selectedList = predefinedLists.find(list => list.id === selectedListId);
       if (!selectedList) return null;
@@ -72,8 +95,8 @@ export default function Page() {
     // Clear previous errors
     setValidationError('');
 
-    // Get poll options
-    const pollOptions = getPollOptions();
+    // Get poll options with validation
+    const pollOptions = getPollOptionsWithValidation();
     if (!pollOptions) {
       return; // Validation error already set
     }
@@ -122,7 +145,7 @@ export default function Page() {
   }, []);
 
   // Get current preview options
-  const previewOptions = getPollOptions();
+  const previewOptions = getPreviewOptions();
 
   return (
     <div className="min-h-screen flex flex-col p-6 bg-white dark:bg-gray-900">

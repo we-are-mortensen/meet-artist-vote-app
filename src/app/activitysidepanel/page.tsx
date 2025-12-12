@@ -154,17 +154,21 @@ export default function Page() {
 
   if (!pollState) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-paper">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-blue-600 mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Carregant...</p>
+          <div className="mb-4 flex justify-center gap-2">
+            <span className="text-4xl animate-bounce" style={{ animationDelay: '0ms' }}>🎨</span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: '100ms' }}>✨</span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: '200ms' }}>🖌️</span>
+          </div>
+          <p className="font-heading text-xl text-text-secondary font-bold">Carregant...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col p-6 bg-white dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col p-6 bg-paper">
       <div className="max-w-md mx-auto w-full">
         <PollQuestion round={pollState.round} />
 
@@ -179,49 +183,40 @@ export default function Page() {
                 onClick={handleRevealClick}
                 disabled={isRevealing}
                 className={`
-                  w-full mt-6 py-4 px-6 rounded-lg font-bold text-lg
+                  w-full mt-6 py-4 px-6 hand-drawn border-3
+                  font-heading text-xl font-bold text-white
                   transition-all duration-200
                   ${
                     isRevealing
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'
+                      ? 'bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed'
+                      : 'bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0'
                   }
-                  text-white shadow-lg
+                  flex items-center justify-center gap-3
                 `}
               >
                 {isRevealing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="animate-spin h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-white/30 border-t-white"></span>
                     Revelant...
                   </span>
                 ) : (
-                  'Revelar resultats'
+                  <>
+                    <span className="text-2xl">🎭</span>
+                    Revelar resultats
+                  </>
                 )}
               </button>
             )}
 
             {/* Results revealed confirmation */}
             {hasRevealed && (
-              <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500 rounded-lg text-center">
-                <p className="text-purple-700 dark:text-purple-300 font-semibold">
+              <div className="mt-6 p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
+                <div className="mb-2 flex justify-center gap-2">
+                  <span className="text-2xl">🎉</span>
+                  <span className="text-2xl">📺</span>
+                  <span className="text-2xl">🎉</span>
+                </div>
+                <p className="font-heading text-lg text-crayon-purple font-bold">
                   Els resultats s&apos;estan mostrant a la pantalla principal
                 </p>
               </div>

@@ -1,26 +1,221 @@
+/* Google Fonts - Playful typography (must be before Tailwind import) */
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap');
+
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================
+   PLAYFUL CHILDISH THEME - Artist Vote App
+   Inspired by children's coloring books
+   ============================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* Crayon Colors - Light Mode */
+  --crayon-red: #EE4266;
+  --crayon-orange: #FFA62F;
+  --crayon-yellow: #FFD23F;
+  --crayon-green: #06D6A0;
+  --crayon-blue: #118AB2;
+  --crayon-purple: #9B5DE5;
+  --crayon-pink: #F15BB5;
+
+  /* Background Colors - Light Mode */
+  --bg-paper: #FFF8E7;
+  --bg-card: #FFFFFF;
+  --bg-highlight: #FEF3C7;
+
+  /* Text Colors - Light Mode */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+
+  /* Legacy variables */
+  --background: var(--bg-paper);
+  --foreground: var(--text-primary);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Crayon Colors - Dark Mode (slightly lighter for visibility) */
+    --crayon-red: #FF6B8A;
+    --crayon-orange: #FFB84D;
+    --crayon-yellow: #FFE066;
+    --crayon-green: #2EE6B6;
+    --crayon-blue: #3AA5C7;
+    --crayon-purple: #B07FED;
+    --crayon-pink: #F47CC4;
+
+    /* Background Colors - Dark Mode */
+    --bg-paper: #2D2A24;
+    --bg-card: #3D3A34;
+    --bg-highlight: #4D4A3D;
+
+    /* Text Colors - Dark Mode */
+    --text-primary: #F9FAFB;
+    --text-secondary: #9CA3AF;
+
+    /* Legacy variables */
+    --background: var(--bg-paper);
+    --foreground: var(--text-primary);
   }
 }
 
+/* Tailwind Theme Tokens */
+@theme inline {
+  /* Crayon color palette */
+  --color-crayon-red: var(--crayon-red);
+  --color-crayon-orange: var(--crayon-orange);
+  --color-crayon-yellow: var(--crayon-yellow);
+  --color-crayon-green: var(--crayon-green);
+  --color-crayon-blue: var(--crayon-blue);
+  --color-crayon-purple: var(--crayon-purple);
+  --color-crayon-pink: var(--crayon-pink);
+
+  /* Background colors */
+  --color-paper: var(--bg-paper);
+  --color-card: var(--bg-card);
+  --color-highlight: var(--bg-highlight);
+
+  /* Text colors */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
+  /* Legacy colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Typography */
+  --font-heading: 'Baloo 2', cursive;
+  --font-body: 'Nunito', sans-serif;
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Base Styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-paper);
+  color: var(--text-primary);
+  font-family: 'Nunito', sans-serif;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Hand-drawn border effect - wobbly organic look */
+.hand-drawn {
+  border-radius: 255px 15px 225px 15px/15px 225px 15px 255px;
+}
+
+.hand-drawn-sm {
+  border-radius: 155px 10px 145px 10px/10px 145px 10px 155px;
+}
+
+.hand-drawn-subtle {
+  border-radius: 30px 5px 25px 5px/5px 25px 5px 30px;
+}
+
+/* Playful shadow - soft and colorful */
+.shadow-playful {
+  box-shadow:
+    4px 4px 0px var(--crayon-blue),
+    8px 8px 0px rgba(17, 138, 178, 0.2);
+}
+
+.shadow-playful-green {
+  box-shadow:
+    4px 4px 0px var(--crayon-green),
+    8px 8px 0px rgba(6, 214, 160, 0.2);
+}
+
+.shadow-playful-purple {
+  box-shadow:
+    4px 4px 0px var(--crayon-purple),
+    8px 8px 0px rgba(155, 93, 229, 0.2);
+}
+
+.shadow-playful-yellow {
+  box-shadow:
+    4px 4px 0px var(--crayon-yellow),
+    8px 8px 0px rgba(255, 210, 63, 0.2);
+}
+
+/* Bouncy hover animation */
+.hover-bounce {
+  transition: transform 0.2s ease-in-out;
+}
+
+.hover-bounce:hover {
+  transform: scale(1.05) rotate(1deg);
+}
+
+.hover-bounce:active {
+  transform: scale(0.98) rotate(-1deg);
+}
+
+/* Wiggle animation for fun elements */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out infinite;
+}
+
+/* Confetti/celebration dots background */
+.bg-confetti {
+  background-image:
+    radial-gradient(circle at 10% 20%, var(--crayon-pink) 2px, transparent 2px),
+    radial-gradient(circle at 90% 80%, var(--crayon-blue) 2px, transparent 2px),
+    radial-gradient(circle at 30% 70%, var(--crayon-yellow) 3px, transparent 3px),
+    radial-gradient(circle at 70% 30%, var(--crayon-green) 2px, transparent 2px),
+    radial-gradient(circle at 50% 50%, var(--crayon-purple) 2px, transparent 2px),
+    radial-gradient(circle at 20% 90%, var(--crayon-orange) 3px, transparent 3px),
+    radial-gradient(circle at 80% 10%, var(--crayon-red) 2px, transparent 2px);
+  background-size: 100px 100px;
+}
+
+/* Paper texture overlay */
+.paper-texture {
+  position: relative;
+}
+
+.paper-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Crayon stroke underline */
+.underline-crayon {
+  text-decoration: none;
+  background-image: linear-gradient(
+    to right,
+    var(--crayon-yellow) 0%,
+    var(--crayon-yellow) 100%
+  );
+  background-size: 100% 8px;
+  background-position: 0 88%;
+  background-repeat: no-repeat;
+}
+
+/* Playful input focus */
+.input-playful:focus {
+  outline: none;
+  border-color: var(--crayon-blue);
+  box-shadow:
+    0 0 0 3px rgba(17, 138, 178, 0.2),
+    4px 4px 0px var(--crayon-blue);
+}
+
+/* Star decoration */
+.star-decoration::after {
+  content: '\2605';
+  position: absolute;
+  font-size: 1.5rem;
+  color: var(--crayon-yellow);
+  animation: wiggle 1s ease-in-out infinite;
 }

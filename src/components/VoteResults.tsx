@@ -12,6 +12,16 @@ type VoteResultsProps = {
   votingInProgress?: boolean;
 };
 
+// Array of crayon colors to cycle through for result bars
+const crayonColors = [
+  { bg: 'bg-crayon-blue', border: 'border-crayon-blue', text: 'text-crayon-blue' },
+  { bg: 'bg-crayon-pink', border: 'border-crayon-pink', text: 'text-crayon-pink' },
+  { bg: 'bg-crayon-green', border: 'border-crayon-green', text: 'text-crayon-green' },
+  { bg: 'bg-crayon-purple', border: 'border-crayon-purple', text: 'text-crayon-purple' },
+  { bg: 'bg-crayon-orange', border: 'border-crayon-orange', text: 'text-crayon-orange' },
+  { bg: 'bg-crayon-red', border: 'border-crayon-red', text: 'text-crayon-red' },
+];
+
 export default function VoteResults({
   results,
   votingInProgress = true,
@@ -21,28 +31,23 @@ export default function VoteResults({
   if (totalVotes === 0) {
     return (
       <div className="vote-results-empty text-center py-12">
-        <div className="mb-4">
-          <svg
-            className="h-20 w-20 text-gray-400 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
+        <div className="mb-4 flex justify-center gap-2">
+          <span className="text-5xl">📋</span>
         </div>
-        <h2 className="text-2xl font-bold text-gray-600 dark:text-gray-400 mb-2">
+        <h2 className="font-heading text-3xl font-bold text-text-secondary mb-3">
           Esperant vots...
         </h2>
-        <p className="text-gray-500 dark:text-gray-500">
+        <p className="font-body text-lg text-text-secondary">
           Els resultats es mostraran aquí quan els participants comencin a votar
         </p>
+        {/* Waiting animation */}
+        <div className="mt-6 flex justify-center">
+          <div className="flex space-x-2">
+            <div className="h-3 w-3 bg-crayon-pink rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="h-3 w-3 bg-crayon-blue rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="h-3 w-3 bg-crayon-yellow rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -51,36 +56,35 @@ export default function VoteResults({
     <div className="vote-results max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="results-header text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+        <h1 className="font-heading text-4xl md:text-5xl font-bold text-crayon-purple mb-3">
           Resultats de la Votació
         </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
+        <p className="font-body text-xl text-text-secondary">
           {totalVotes} {totalVotes === 1 ? 'vot rebut' : 'vots rebuts'}
         </p>
         {votingInProgress && (
-          <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
+          <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-crayon-blue/10 text-crayon-blue font-body font-semibold hand-drawn-subtle border-2 border-crayon-blue">
+            <span className="inline-block animate-spin h-4 w-4 border-2 border-crayon-blue/30 border-t-crayon-blue rounded-full"></span>
             Votació en curs...
-          </p>
+          </div>
         )}
       </div>
 
       {/* Winner announcement (if voting complete and no tie) */}
       {!votingInProgress && winner && !hasTie && (
-        <div className="winner-announcement bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-500 rounded-lg p-6 mb-8 text-center">
-          <div className="mb-3">
-            <svg
-              className="h-16 w-16 text-yellow-500 mx-auto"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
+        <div className="winner-announcement bg-crayon-yellow/20 border-4 border-crayon-yellow hand-drawn p-8 mb-8 text-center shadow-playful-yellow">
+          <div className="mb-4 flex justify-center gap-2">
+            <span className="text-4xl animate-bounce" style={{ animationDelay: '0ms' }}>🌟</span>
+            <span className="text-5xl animate-bounce" style={{ animationDelay: '100ms' }}>👑</span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: '200ms' }}>🌟</span>
           </div>
-          <h2 className="text-2xl font-bold text-yellow-800 dark:text-yellow-200 mb-1">
-            Guanyador: {winner.optionName}
+          <h2 className="font-heading text-3xl md:text-4xl font-bold text-crayon-yellow mb-2" style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.1)' }}>
+            L&apos;artista d&apos;avui és:
           </h2>
-          <p className="text-yellow-700 dark:text-yellow-300">
+          <p className="font-heading text-4xl md:text-5xl font-bold text-crayon-purple mb-3">
+            {winner.optionName}
+          </p>
+          <p className="font-body text-lg text-text-primary">
             {winner.voteCount} {winner.voteCount === 1 ? 'vot' : 'vots'} ({winner.percentage.toFixed(1)}%)
           </p>
         </div>
@@ -88,11 +92,14 @@ export default function VoteResults({
 
       {/* Tie announcement */}
       {!votingInProgress && hasTie && (
-        <div className="tie-announcement bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-500 rounded-lg p-6 mb-8 text-center">
-          <h2 className="text-2xl font-bold text-orange-800 dark:text-orange-200 mb-2">
+        <div className="tie-announcement bg-crayon-orange/20 border-4 border-crayon-orange hand-drawn p-8 mb-8 text-center">
+          <div className="mb-4 flex justify-center gap-2">
+            <span className="text-4xl">🤝</span>
+          </div>
+          <h2 className="font-heading text-3xl font-bold text-crayon-orange mb-2">
             Empat!
           </h2>
-          <p className="text-orange-700 dark:text-orange-300">
+          <p className="font-body text-lg text-text-primary">
             Hi ha diverses opcions empatades a la primera posició
           </p>
         </div>
@@ -103,55 +110,61 @@ export default function VoteResults({
         {optionResults.map((result, index) => {
           const isWinner = !hasTie && result.optionId === winner?.optionId;
           const isTied = hasTie && result.voteCount === optionResults[0].voteCount && result.voteCount > 0;
+          const colorScheme = crayonColors[index % crayonColors.length];
 
           return (
             <div
               key={result.optionId}
               className={`
-                result-item p-4 rounded-lg border-2 transition-all
+                result-item p-5 hand-drawn-subtle border-3 transition-all bg-card
                 ${
                   isWinner
-                    ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+                    ? 'border-crayon-yellow bg-crayon-yellow/10 scale-[1.02]'
                     : isTied
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                    ? 'border-crayon-orange bg-crayon-orange/10'
+                    : `${colorScheme.border} bg-card`
                 }
               `}
             >
               {/* Option info */}
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl font-bold text-gray-400 dark:text-gray-600">
+                  <span className={`font-heading text-2xl font-bold ${isWinner ? 'text-crayon-yellow' : isTied ? 'text-crayon-orange' : colorScheme.text}`}>
                     #{index + 1}
                   </span>
-                  <span className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  <span className="font-heading text-xl font-bold text-text-primary">
                     {result.optionName}
                   </span>
                   {isWinner && (
-                    <span className="text-yellow-500 text-2xl" aria-label="Guanyador">
+                    <span className="text-2xl" aria-label="Guanyador">
                       👑
+                    </span>
+                  )}
+                  {isTied && !isWinner && (
+                    <span className="text-2xl" aria-label="Empatat">
+                      🤝
                     </span>
                   )}
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <div className={`font-heading text-3xl font-bold ${isWinner ? 'text-crayon-yellow' : isTied ? 'text-crayon-orange' : colorScheme.text}`}>
                     {result.voteCount}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="font-body text-sm text-text-secondary">
                     {result.percentage.toFixed(1)}%
                   </div>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-text-secondary/20 rounded-full h-4 overflow-hidden hand-drawn-subtle">
                 <div
-                  className={`h-full transition-all duration-500 ${
+                  className={`h-full transition-all duration-700 ${
                     isWinner
-                      ? 'bg-yellow-500'
+                      ? 'bg-crayon-yellow'
                       : isTied
-                      ? 'bg-orange-500'
-                      : 'bg-blue-500'
+                      ? 'bg-crayon-orange'
+                      : colorScheme.bg
                   }`}
                   style={{ width: `${result.percentage}%` }}
                   aria-label={`${result.percentage.toFixed(1)}% dels vots`}

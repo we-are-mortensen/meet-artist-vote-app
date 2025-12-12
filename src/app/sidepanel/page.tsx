@@ -151,44 +151,54 @@ export default function Page() {
   const previewOptions = getPreviewOptions();
 
   return (
-    <div className="min-h-screen flex flex-col p-6 bg-white dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col p-6 bg-paper">
       <div className="max-w-md mx-auto w-full">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <div className="mb-3 flex justify-center gap-2">
+            <span className="text-3xl">🎨</span>
+            <span className="text-3xl">✨</span>
+          </div>
+          <h1 className="font-heading text-3xl font-bold text-crayon-purple mb-2">
             Votació de l&apos;Artista
           </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="font-body text-base text-text-secondary">
             Configura les opcions de votació
           </p>
         </div>
 
         {/* Option source selection */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+          <label className="block font-heading text-lg font-bold text-text-primary mb-3">
             Opcions de votació:
           </label>
 
           {/* Predefined option */}
           <label className={`
-            flex items-start p-4 rounded-lg border-2 cursor-pointer mb-3 transition-all
+            flex items-start p-4 hand-drawn-subtle border-3 cursor-pointer mb-3 transition-all bg-card
             ${optionsSource === 'predefined'
-              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-              : 'border-gray-200 dark:border-gray-700 hover:border-blue-400'}
+              ? 'border-crayon-blue bg-crayon-blue/10 shadow-md'
+              : 'border-text-secondary/30 hover:border-crayon-blue/50'}
           `}>
+            <div className={`
+              w-6 h-6 rounded-full border-3 flex items-center justify-center mt-0.5
+              ${optionsSource === 'predefined' ? 'border-crayon-blue bg-crayon-blue/20' : 'border-text-secondary/40'}
+            `}>
+              {optionsSource === 'predefined' && <div className="w-3 h-3 rounded-full bg-crayon-blue" />}
+            </div>
             <input
               type="radio"
               name="optionsSource"
               value="predefined"
               checked={optionsSource === 'predefined'}
               onChange={() => setOptionsSource('predefined')}
-              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500"
+              className="sr-only"
             />
             <div className="ml-3 flex-1">
-              <span className="block font-medium text-gray-900 dark:text-gray-100">
+              <span className="block font-heading text-lg font-bold text-text-primary">
                 Utilitzar llista predefinida
               </span>
-              <span className="block text-sm text-gray-600 dark:text-gray-400 mt-1">
+              <span className="block font-body text-sm text-text-secondary mt-1">
                 Selecciona una llista de noms ja configurada
               </span>
 
@@ -196,9 +206,9 @@ export default function Page() {
                 <select
                   value={selectedListId}
                   onChange={(e) => setSelectedListId(e.target.value)}
-                  className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                    bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="mt-3 w-full px-3 py-2 border-2 border-crayon-blue/50 hand-drawn-subtle
+                    bg-card text-text-primary font-body
+                    focus:outline-none focus:border-crayon-blue focus:ring-2 focus:ring-crayon-blue/20"
                 >
                   {predefinedLists.map(list => (
                     <option key={list.id} value={list.id}>
@@ -212,24 +222,30 @@ export default function Page() {
 
           {/* Custom option */}
           <label className={`
-            flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all
+            flex items-start p-4 hand-drawn-subtle border-3 cursor-pointer transition-all bg-card
             ${optionsSource === 'custom'
-              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-              : 'border-gray-200 dark:border-gray-700 hover:border-blue-400'}
+              ? 'border-crayon-pink bg-crayon-pink/10 shadow-md'
+              : 'border-text-secondary/30 hover:border-crayon-pink/50'}
           `}>
+            <div className={`
+              w-6 h-6 rounded-full border-3 flex items-center justify-center mt-0.5
+              ${optionsSource === 'custom' ? 'border-crayon-pink bg-crayon-pink/20' : 'border-text-secondary/40'}
+            `}>
+              {optionsSource === 'custom' && <div className="w-3 h-3 rounded-full bg-crayon-pink" />}
+            </div>
             <input
               type="radio"
               name="optionsSource"
               value="custom"
               checked={optionsSource === 'custom'}
               onChange={() => setOptionsSource('custom')}
-              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500"
+              className="sr-only"
             />
             <div className="ml-3 flex-1">
-              <span className="block font-medium text-gray-900 dark:text-gray-100">
+              <span className="block font-heading text-lg font-bold text-text-primary">
                 Crear llista personalitzada
               </span>
-              <span className="block text-sm text-gray-600 dark:text-gray-400 mt-1">
+              <span className="block font-body text-sm text-text-secondary mt-1">
                 Introdueix els noms, un per línia
               </span>
 
@@ -242,10 +258,10 @@ export default function Page() {
                   }}
                   placeholder="Anna&#10;Bernat&#10;Carla&#10;David"
                   rows={6}
-                  className="mt-3 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
-                    bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                    focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    font-mono text-sm resize-none"
+                  className="mt-3 w-full px-3 py-2 border-2 border-crayon-pink/50 hand-drawn-subtle
+                    bg-card text-text-primary font-body
+                    focus:outline-none focus:border-crayon-pink focus:ring-2 focus:ring-crayon-pink/20
+                    resize-none"
                 />
               )}
             </div>
@@ -254,8 +270,8 @@ export default function Page() {
 
         {/* Validation error */}
         {validationError && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-800 dark:text-red-200">
+          <div className="mb-4 p-4 bg-crayon-red/10 border-3 border-crayon-red hand-drawn-subtle">
+            <p className="font-body text-base text-crayon-red font-semibold">
               {validationError}
             </p>
           </div>
@@ -263,18 +279,18 @@ export default function Page() {
 
         {/* Preview section */}
         {previewOptions && previewOptions.length > 0 && (
-          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="bg-crayon-yellow/10 border-3 border-crayon-yellow hand-drawn-subtle p-4 mb-6">
+            <h3 className="font-heading text-base font-bold text-crayon-yellow mb-2">
               Vista prèvia ({previewOptions.length} opcions):
             </h3>
             <ul className="space-y-1 max-h-32 overflow-y-auto">
               {previewOptions.slice(0, 10).map((option, index) => (
-                <li key={option.id} className="text-sm text-gray-600 dark:text-gray-400">
+                <li key={option.id} className="font-body text-sm text-text-primary">
                   {index + 1}. {option.name}
                 </li>
               ))}
               {previewOptions.length > 10 && (
-                <li className="text-sm text-gray-500 dark:text-gray-500 italic">
+                <li className="font-body text-sm text-text-secondary italic">
                   ... i {previewOptions.length - 10} més
                 </li>
               )}
@@ -283,11 +299,11 @@ export default function Page() {
         )}
 
         {/* Question preview */}
-        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <div className="bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn-subtle p-4 mb-6">
+          <h3 className="font-heading text-base font-bold text-crayon-purple mb-2">
             Pregunta:
           </h3>
-          <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <p className="font-heading text-xl font-bold text-text-primary">
             Qui és l&apos;artista d&apos;avui?
           </p>
         </div>
@@ -298,33 +314,37 @@ export default function Page() {
           disabled={!sidePanelClient || isStarting}
           aria-label="Començar la votació"
           className={`
-            w-full py-4 px-6 rounded-lg font-semibold text-white text-lg
+            w-full py-4 px-6 hand-drawn border-3
+            font-heading text-xl font-bold text-white
             transition-all duration-200
             ${
               !sidePanelClient || isStarting
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700 active:bg-green-800 hover:shadow-lg'
+                ? 'bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed'
+                : 'bg-crayon-green border-crayon-green shadow-playful-green hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0'
             }
-            flex items-center justify-center gap-2
+            flex items-center justify-center gap-3
           `}
         >
           {isStarting ? (
             <>
-              <span className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></span>
+              <span className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-white/30 border-t-white"></span>
               <span>Iniciant votació...</span>
             </>
           ) : (
             <>
-              <span>🎨</span>
+              <span className="text-2xl">🎨</span>
               <span>Començar votació</span>
             </>
           )}
         </button>
 
         {!sidePanelClient && (
-          <p className="text-center text-sm text-gray-500 dark:text-gray-500 mt-4">
-            Inicialitzant...
-          </p>
+          <div className="text-center mt-4">
+            <div className="inline-flex items-center gap-2 font-body text-text-secondary">
+              <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-crayon-blue/30 border-t-crayon-blue"></span>
+              Inicialitzant...
+            </div>
+          </div>
         )}
       </div>
     </div>

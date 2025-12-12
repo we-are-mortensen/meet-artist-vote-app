@@ -22,26 +22,45 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-linear-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-paper bg-confetti">
       <div className="max-w-2xl text-center">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+        {/* Fun emoji header */}
+        <div className="mb-6 flex justify-center gap-3">
+          <span className="text-5xl animate-bounce" style={{ animationDelay: '0ms' }}>🎨</span>
+          <span className="text-5xl animate-bounce" style={{ animationDelay: '100ms' }}>🖌️</span>
+          <span className="text-5xl animate-bounce" style={{ animationDelay: '200ms' }}>✨</span>
+        </div>
+
+        <h1 className="font-heading text-5xl md:text-6xl font-bold text-crayon-purple mb-4">
           Votació de l&apos;Artista
         </h1>
-        <p className="text-lg text-gray-700 dark:text-gray-300 mb-8">
+
+        <p className="font-body text-xl text-text-primary mb-8">
           Comparteix aquesta pàgina per activar el complement de Google Meet i començar la votació.
         </p>
-        <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 rounded-lg p-6 mb-8">
-          <p className="text-base text-blue-900 dark:text-blue-100 font-medium">
+
+        <div className="bg-card border-4 border-crayon-blue hand-drawn p-6 mb-8 shadow-playful">
+          <p className="font-heading text-xl text-crayon-blue font-bold mb-4">
             📺 Per començar:
           </p>
-          <ol className="text-left text-blue-800 dark:text-blue-200 mt-4 space-y-2">
-            <li>1. Comparteix aquesta pantalla a Google Meet</li>
-            <li>2. Obre el complement quan aparegui</li>
-            <li>3. Comença la votació des del panell lateral</li>
+          <ol className="text-left font-body text-lg text-text-primary space-y-3">
+            <li className="flex items-start gap-3">
+              <span className="shrink-0 w-8 h-8 bg-crayon-pink text-white font-heading font-bold rounded-full flex items-center justify-center">1</span>
+              <span>Comparteix aquesta pantalla a Google Meet</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="shrink-0 w-8 h-8 bg-crayon-blue text-white font-heading font-bold rounded-full flex items-center justify-center">2</span>
+              <span>Obre el complement quan aparegui</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="shrink-0 w-8 h-8 bg-crayon-green text-white font-heading font-bold rounded-full flex items-center justify-center">3</span>
+              <span>Comença la votació des del panell lateral</span>
+            </li>
           </ol>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Qui serà l&apos;artista d&apos;avui?
+
+        <p className="font-heading text-2xl text-crayon-yellow font-bold">
+          Qui serà l&apos;artista d&apos;avui? 🌟
         </p>
       </div>
     </div>

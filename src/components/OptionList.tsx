@@ -27,8 +27,8 @@ export default function OptionList({
   if (loading) {
     return (
       <div className="option-list-loading text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">
+        <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-crayon-pink/30 border-t-crayon-pink"></div>
+        <p className="mt-4 font-body text-text-secondary font-medium">
           Carregant opcions...
         </p>
       </div>
@@ -38,38 +38,67 @@ export default function OptionList({
   if (options.length === 0) {
     return (
       <div className="option-list-empty text-center py-8">
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="font-body text-text-secondary">
           No hi ha opcions disponibles
         </p>
       </div>
     );
   }
 
+  // Array of crayon colors to cycle through for options
+  const crayonColors = [
+    { border: 'border-crayon-blue', bg: 'bg-crayon-blue/10', text: 'text-crayon-blue', ring: 'ring-crayon-blue' },
+    { border: 'border-crayon-pink', bg: 'bg-crayon-pink/10', text: 'text-crayon-pink', ring: 'ring-crayon-pink' },
+    { border: 'border-crayon-green', bg: 'bg-crayon-green/10', text: 'text-crayon-green', ring: 'ring-crayon-green' },
+    { border: 'border-crayon-purple', bg: 'bg-crayon-purple/10', text: 'text-crayon-purple', ring: 'ring-crayon-purple' },
+    { border: 'border-crayon-orange', bg: 'bg-crayon-orange/10', text: 'text-crayon-orange', ring: 'ring-crayon-orange' },
+    { border: 'border-crayon-yellow', bg: 'bg-crayon-yellow/10', text: 'text-crayon-yellow', ring: 'ring-crayon-yellow' },
+    { border: 'border-crayon-red', bg: 'bg-crayon-red/10', text: 'text-crayon-red', ring: 'ring-crayon-red' },
+  ];
+
   return (
-    <div className="option-list space-y-2">
-      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+    <div className="option-list space-y-3">
+      <p className="font-heading text-lg font-bold text-text-primary mb-4">
         Selecciona una opció:
       </p>
-      {options.map((option) => {
+      {options.map((option, index) => {
         const isSelected = selectedOptionId === option.id;
+        const colorScheme = crayonColors[index % crayonColors.length];
+
         return (
           <label
             key={option.id}
             className={`
               poll-option
-              flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all
+              flex items-center p-4 hand-drawn-subtle border-3 cursor-pointer
+              transition-all duration-200 bg-card
               ${
                 isSelected
-                  ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500'
+                  ? `${colorScheme.border} ${colorScheme.bg} shadow-lg scale-[1.02]`
+                  : 'border-text-secondary/30 hover:border-crayon-blue/50'
               }
               ${
                 disabled
                   ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:shadow-md'
+                  : 'hover:scale-[1.01] hover:shadow-md'
               }
             `}
           >
+            <div
+              className={`
+                w-6 h-6 rounded-full border-3 flex items-center justify-center
+                transition-all duration-200
+                ${
+                  isSelected
+                    ? `${colorScheme.border} ${colorScheme.bg}`
+                    : 'border-text-secondary/40'
+                }
+              `}
+            >
+              {isSelected && (
+                <div className={`w-3 h-3 rounded-full ${colorScheme.border.replace('border-', 'bg-')}`} />
+              )}
+            </div>
             <input
               type="radio"
               name="poll-option"
@@ -77,17 +106,13 @@ export default function OptionList({
               checked={isSelected}
               onChange={() => onSelect(option.id)}
               disabled={disabled}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+              className="sr-only"
               aria-label={`Votar per ${option.name}`}
             />
             <span
               className={`
-                ml-3 text-base font-medium
-                ${
-                  isSelected
-                    ? 'text-blue-900 dark:text-blue-100'
-                    : 'text-gray-900 dark:text-gray-100'
-                }
+                ml-4 font-body text-lg font-semibold
+                ${isSelected ? colorScheme.text : 'text-text-primary'}
               `}
             >
               {option.name}

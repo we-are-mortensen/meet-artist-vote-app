@@ -2,43 +2,21 @@
   "lists": [
     {
       "id": "default",
-      "name": "Llista per defecte",
-      "description": "Llista de noms predefinits per a la votació",
-      "options": [
-        "Anna",
-        "Bernat",
-        "Carla",
-        "David",
-        "Emma",
-        "Ferran",
-        "Gemma",
-        "Hugo"
-      ]
+      "name": "Mortensen",
+      "description": "Tot l'equip de Mortensen",
+      "options": ["Adri", "Anita", "Ana", "Anto", "Edwin", "Ester", "Maria", "Marie", "Naomí", "Nika", "Pau"]
     },
     {
-      "id": "team",
-      "name": "Equip de treball",
-      "description": "Membres de l'equip",
-      "options": [
-        "Director/a",
-        "Cap de projecte",
-        "Desenvolupador/a Senior",
-        "Desenvolupador/a Junior",
-        "Dissenyador/a",
-        "Analista",
-        "Product Manager"
-      ]
+      "id": "dev",
+      "name": "Dev",
+      "description": "Equip de desenvolupament",
+      "options": ["Adri", "Edwin", "Marie", "Nika", "Pau"]
     },
     {
-      "id": "simple",
-      "name": "Llista simple",
-      "description": "Opcions bàsiques",
-      "options": [
-        "Opció A",
-        "Opció B",
-        "Opció C",
-        "Opció D"
-      ]
+      "id": "disseny",
+      "name": "Disseny",
+      "description": "Equip de disseny",
+      "options": ["Anita", "Ana", "Ester", "Maria", "Naomí"]
     }
   ]
 }

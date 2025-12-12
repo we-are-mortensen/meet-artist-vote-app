@@ -1,4 +1,5 @@
 import { type Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: "Votació de l'Artista",
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ca">
-      <body>{children}</body>
+      <body className="font-body bg-paper text-text-primary">{children}</body>
     </html>
   );
 }

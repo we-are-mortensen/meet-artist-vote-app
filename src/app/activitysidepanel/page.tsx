@@ -7,7 +7,7 @@ import {
 } from '@googleworkspace/meet-addons/meet.addons';
 import { CLOUD_PROJECT_NUMBER } from '../../shared/constants';
 import type { Vote, PollState } from '../../types/poll.types';
-import { generateParticipantId } from '../../utils/voteCalculations';
+import { generateVoterId } from '../../utils/voteCalculations';
 import { useVoteChannel } from '../../hooks/useVoteChannel';
 import PollQuestion from '../../components/PollQuestion';
 import OptionList from '../../components/OptionList';
@@ -24,7 +24,7 @@ export default function Page() {
   const [pollState, setPollState] = useState<PollState | null>(null);
 
   // Anonymous voter ID (generated once on load)
-  const [voterId] = useState(() => generateParticipantId());
+  const [voterId] = useState(() => generateVoterId());
 
   // Voting state
   const [selectedOptionId, setSelectedOptionId] = useState('');
@@ -65,7 +65,6 @@ export default function Page() {
     try {
       const vote: Vote = {
         voterId: voterId,
-        voterName: 'Anònim',
         selectedOptionId,
         timestamp: Date.now(),
       };

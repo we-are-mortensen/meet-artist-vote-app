@@ -4,7 +4,6 @@
 
 /**
  * Represents a poll option that users can vote for
- * This replaces the old Participant type for voting purposes
  */
 export type PollOption = {
   /** Unique identifier for the option */
@@ -14,19 +13,11 @@ export type PollOption = {
 };
 
 /**
- * @deprecated Use PollOption instead
- * Kept for backward compatibility during migration
- */
-export type Participant = PollOption;
-
-/**
- * Represents a single vote cast by a participant
+ * Represents a single anonymous vote
  */
 export type Vote = {
-  /** ID of the voter who cast the vote */
+  /** Anonymous ID of the voter */
   voterId: string;
-  /** Name of the voter (for display purposes, can be anonymous) */
-  voterName: string;
   /** ID of the option that was voted for */
   selectedOptionId: string;
   /** Unix timestamp when the vote was cast */
@@ -65,8 +56,6 @@ export type VoteResult = {
   voteCount: number;
   /** Percentage of total votes (0-100) */
   percentage: number;
-  /** List of voter names who voted for this option */
-  voters: string[];
 };
 
 /**
@@ -86,36 +75,20 @@ export type VoteResults = {
 };
 
 /**
- * Message types for frame-to-frame communication
+ * Message type for Supabase Realtime broadcast
  */
-export type MessageType =
-  | 'PARTICIPANT_JOINED'
-  | 'VOTE_CAST'
-  | 'POLL_STARTED'
-  | 'POLL_COMPLETED'
-  | 'STATE_UPDATE';
+export type MessageType = 'VOTE_CAST';
 
 /**
- * Frame-to-frame message structure
+ * Supabase Realtime message structure
  */
 export type PollMessage = {
   /** Type of message being sent */
   type: MessageType;
   /** Message payload */
-  payload: Vote | Participant | PollState | any;
+  payload: Vote;
   /** Timestamp when message was sent */
   timestamp: number;
-};
-
-/**
- * @deprecated No longer using participant registration
- * Kept for backward compatibility during migration
- */
-export type ParticipantRegistration = {
-  /** Name entered by the participant */
-  name: string;
-  /** Unique ID generated for the participant */
-  id: string;
 };
 
 /**

@@ -157,13 +157,6 @@ export default function VoteResults({
                   aria-label={`${result.percentage.toFixed(1)}% dels vots`}
                 ></div>
               </div>
-
-              {/* Voters list (optional, shown if there are votes) */}
-              {result.voters.length > 0 && (
-                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                  Vots de: {result.voters.join(', ')}
-                </div>
-              )}
             </div>
           );
         })}

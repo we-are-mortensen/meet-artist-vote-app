@@ -33,15 +33,13 @@ export type PollState = {
   /** All votes that have been cast */
   votes: Vote[];
   /** Current status of the poll */
-  status: 'setup' | 'voting' | 'completed';
-  /** Poll question (in Catalan) */
-  question: string;
+  status: "setup" | "voting" | "completed";
   /** ID of the poll (useful for tiebreaker rounds) */
   pollId: string;
   /** Round number (1 for initial, 2+ for tiebreakers) */
   round: number;
   /** Source of the poll options */
-  optionsSource: 'predefined' | 'custom';
+  optionsSource: "predefined" | "custom";
 };
 
 /**
@@ -77,14 +75,12 @@ export type VoteResults = {
 /**
  * Message types for Supabase Realtime broadcast
  */
-export type MessageType = 'VOTE_CAST' | 'REVEAL_RESULTS';
+export type MessageType = "VOTE_CAST" | "REVEAL_RESULTS";
 
 /**
  * Supabase Realtime message structure
  */
-export type PollMessage =
-  | { type: 'VOTE_CAST'; payload: Vote; timestamp: number }
-  | { type: 'REVEAL_RESULTS'; payload: null; timestamp: number };
+export type PollMessage = { type: "VOTE_CAST"; payload: Vote; timestamp: number } | { type: "REVEAL_RESULTS"; payload: null; timestamp: number };
 
 /**
  * Predefined list of poll options loaded from JSON

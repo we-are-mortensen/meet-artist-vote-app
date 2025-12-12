@@ -1,23 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import {
-  meet,
-  MeetSidePanelClient,
-} from '@googleworkspace/meet-addons/meet.addons';
-import {
-  ACTIVITY_SIDE_PANEL_URL,
-  CLOUD_PROJECT_NUMBER,
-  MAIN_STAGE_URL,
-} from '../../shared/constants';
-import {
-  generatePollId,
-  parseCustomOptions,
-  validateCustomOptions,
-  stringsToPollOptions
-} from '../../utils/voteCalculations';
-import type { PollState, PollOption, PredefinedListsData } from '../../types/poll.types';
-import predefinedListsData from '../../data/predefinedOptions.json';
+import { useEffect, useState } from "react";
+import { meet, MeetSidePanelClient } from "@googleworkspace/meet-addons/meet.addons";
+import { ACTIVITY_SIDE_PANEL_URL, CLOUD_PROJECT_NUMBER, MAIN_STAGE_URL } from "../../shared/constants";
+import { generatePollId, parseCustomOptions, validateCustomOptions, stringsToPollOptions } from "../../utils/voteCalculations";
+import type { PollState, PollOption, PredefinedListsData } from "../../types/poll.types";
+import predefinedListsData from "../../data/predefinedOptions.json";
 
 /**
  * Setup side panel for the activity initiator
@@ -29,10 +17,10 @@ export default function Page() {
   const [isStarting, setIsStarting] = useState(false);
 
   // Option selection state
-  const [optionsSource, setOptionsSource] = useState<'predefined' | 'custom'>('predefined');
-  const [selectedListId, setSelectedListId] = useState('default');
-  const [customOptionsText, setCustomOptionsText] = useState('');
-  const [validationError, setValidationError] = useState<string>('');
+  const [optionsSource, setOptionsSource] = useState<"predefined" | "custom">("predefined");
+  const [selectedListId, setSelectedListId] = useState("default");
+  const [customOptionsText, setCustomOptionsText] = useState("");
+  const [validationError, setValidationError] = useState<string>("");
 
   const predefinedLists = (predefinedListsData as PredefinedListsData).lists;
 
@@ -40,8 +28,8 @@ export default function Page() {
    * Gets the poll options based on current selection (for preview, no validation errors)
    */
   function getPreviewOptions(): PollOption[] | null {
-    if (optionsSource === 'predefined') {
-      const selectedList = predefinedLists.find(list => list.id === selectedListId);
+    if (optionsSource === "predefined") {
+      const selectedList = predefinedLists.find((list) => list.id === selectedListId);
       if (!selectedList) return null;
       return stringsToPollOptions(selectedList.options);
     } else {
@@ -63,20 +51,20 @@ export default function Page() {
    * Gets the poll options and validates (sets error state if invalid)
    */
   function getPollOptionsWithValidation(): PollOption[] | null {
-    if (optionsSource === 'predefined') {
-      const selectedList = predefinedLists.find(list => list.id === selectedListId);
+    if (optionsSource === "predefined") {
+      const selectedList = predefinedLists.find((list) => list.id === selectedListId);
       if (!selectedList) return null;
       return stringsToPollOptions(selectedList.options);
     } else {
       // Custom options
       if (!customOptionsText.trim()) {
-        setValidationError('Si us plau, introdueix almenys 2 opcions');
+        setValidationError("Si us plau, introdueix almenys 2 opcions");
         return null;
       }
 
       const validation = validateCustomOptions(customOptionsText);
       if (!validation.valid) {
-        setValidationError(validation.error || 'Opcions no vàlides');
+        setValidationError(validation.error || "Opcions no vàlides");
         return null;
       }
 
@@ -89,11 +77,11 @@ export default function Page() {
    */
   async function startVoting() {
     if (!sidePanelClient) {
-      throw new Error('Side Panel is not yet initialized!');
+      throw new Error("Side Panel is not yet initialized!");
     }
 
     // Clear previous errors
-    setValidationError('');
+    setValidationError("");
 
     // Get poll options with validation
     const pollOptions = getPollOptionsWithValidation();
@@ -108,8 +96,7 @@ export default function Page() {
       const pollState: PollState = {
         options: pollOptions,
         votes: [],
-        status: 'voting',
-        question: "Qui és l'artista d'avui?",
+        status: "voting",
         pollId: generatePollId(),
         round: 1,
         optionsSource: optionsSource,
@@ -124,12 +111,12 @@ export default function Page() {
 
       // Mark this browser tab as the host for THIS specific poll
       // (storing pollId ensures a new activity in the same session won't inherit host status)
-      sessionStorage.setItem('hostOfPollId', pollState.pollId);
+      sessionStorage.setItem("hostOfPollId", pollState.pollId);
       window.location.replace(ACTIVITY_SIDE_PANEL_URL + window.location.search);
     } catch (error) {
-      console.error('Error starting voting activity:', error);
+      console.error("Error starting voting activity:", error);
       setIsStarting(false);
-      alert('Error iniciant la votació. Torna-ho a provar.');
+      alert("Error iniciant la votació. Torna-ho a provar.");
     }
   }
 
@@ -159,50 +146,42 @@ export default function Page() {
             <span className="text-3xl">🎨</span>
             <span className="text-3xl">✨</span>
           </div>
-          <h1 className="font-heading text-3xl font-bold text-crayon-purple mb-2">
-            Votació de l&apos;Artista
-          </h1>
-          <p className="font-body text-base text-text-secondary">
-            Configura les opcions de votació
-          </p>
+          <h1 className="font-heading text-3xl font-bold text-crayon-purple mb-2">Qui és l&apos;artista?</h1>
+          <p className="font-body text-base text-text-secondary">Configura les opcions de votació</p>
         </div>
 
         {/* Option source selection */}
         <div className="mb-6">
-          <label className="block font-heading text-lg font-bold text-text-primary mb-3">
-            Opcions de votació:
-          </label>
+          <label className="block font-heading text-lg font-bold text-text-primary mb-3">Opcions de votació:</label>
 
           {/* Predefined option */}
-          <label className={`
+          <label
+            className={`
             flex items-start p-4 hand-drawn-subtle border-3 cursor-pointer mb-3 transition-all bg-card
-            ${optionsSource === 'predefined'
-              ? 'border-crayon-blue bg-crayon-blue/10 shadow-md'
-              : 'border-text-secondary/30 hover:border-crayon-blue/50'}
-          `}>
-            <div className={`
+            ${optionsSource === "predefined" ? "border-crayon-blue bg-crayon-blue/10 shadow-md" : "border-text-secondary/30 hover:border-crayon-blue/50"}
+          `}
+          >
+            <div
+              className={`
               w-6 h-6 rounded-full border-3 flex items-center justify-center mt-0.5
-              ${optionsSource === 'predefined' ? 'border-crayon-blue bg-crayon-blue/20' : 'border-text-secondary/40'}
-            `}>
-              {optionsSource === 'predefined' && <div className="w-3 h-3 rounded-full bg-crayon-blue" />}
+              ${optionsSource === "predefined" ? "border-crayon-blue bg-crayon-blue/20" : "border-text-secondary/40"}
+            `}
+            >
+              {optionsSource === "predefined" && <div className="w-3 h-3 rounded-full bg-crayon-blue" />}
             </div>
             <input
               type="radio"
               name="optionsSource"
               value="predefined"
-              checked={optionsSource === 'predefined'}
-              onChange={() => setOptionsSource('predefined')}
+              checked={optionsSource === "predefined"}
+              onChange={() => setOptionsSource("predefined")}
               className="sr-only"
             />
             <div className="ml-3 flex-1">
-              <span className="block font-heading text-lg font-bold text-text-primary">
-                Utilitzar llista predefinida
-              </span>
-              <span className="block font-body text-sm text-text-secondary mt-1">
-                Selecciona una llista de noms ja configurada
-              </span>
+              <span className="block font-heading text-lg font-bold text-text-primary">Utilitzar llista predefinida</span>
+              <span className="block font-body text-sm text-text-secondary mt-1">Selecciona una llista de noms ja configurada</span>
 
-              {optionsSource === 'predefined' && (
+              {optionsSource === "predefined" && (
                 <select
                   value={selectedListId}
                   onChange={(e) => setSelectedListId(e.target.value)}
@@ -210,7 +189,7 @@ export default function Page() {
                     bg-card text-text-primary font-body
                     focus:outline-none focus:border-crayon-blue focus:ring-2 focus:ring-crayon-blue/20"
                 >
-                  {predefinedLists.map(list => (
+                  {predefinedLists.map((list) => (
                     <option key={list.id} value={list.id}>
                       {list.name} ({list.options.length} opcions)
                     </option>
@@ -221,42 +200,39 @@ export default function Page() {
           </label>
 
           {/* Custom option */}
-          <label className={`
+          <label
+            className={`
             flex items-start p-4 hand-drawn-subtle border-3 cursor-pointer transition-all bg-card
-            ${optionsSource === 'custom'
-              ? 'border-crayon-pink bg-crayon-pink/10 shadow-md'
-              : 'border-text-secondary/30 hover:border-crayon-pink/50'}
-          `}>
-            <div className={`
+            ${optionsSource === "custom" ? "border-crayon-pink bg-crayon-pink/10 shadow-md" : "border-text-secondary/30 hover:border-crayon-pink/50"}
+          `}
+          >
+            <div
+              className={`
               w-6 h-6 rounded-full border-3 flex items-center justify-center mt-0.5
-              ${optionsSource === 'custom' ? 'border-crayon-pink bg-crayon-pink/20' : 'border-text-secondary/40'}
-            `}>
-              {optionsSource === 'custom' && <div className="w-3 h-3 rounded-full bg-crayon-pink" />}
+              ${optionsSource === "custom" ? "border-crayon-pink bg-crayon-pink/20" : "border-text-secondary/40"}
+            `}
+            >
+              {optionsSource === "custom" && <div className="w-3 h-3 rounded-full bg-crayon-pink" />}
             </div>
             <input
               type="radio"
               name="optionsSource"
               value="custom"
-              checked={optionsSource === 'custom'}
-              onChange={() => setOptionsSource('custom')}
+              checked={optionsSource === "custom"}
+              onChange={() => setOptionsSource("custom")}
               className="sr-only"
             />
             <div className="ml-3 flex-1">
-              <span className="block font-heading text-lg font-bold text-text-primary">
-                Crear llista personalitzada
-              </span>
-              <span className="block font-body text-sm text-text-secondary mt-1">
-                Introdueix els noms, un per línia
-              </span>
+              <span className="block font-heading text-lg font-bold text-text-primary">Crear llista personalitzada</span>
+              <span className="block font-body text-sm text-text-secondary mt-1">Introdueix els noms, un per línia</span>
 
-              {optionsSource === 'custom' && (
+              {optionsSource === "custom" && (
                 <textarea
                   value={customOptionsText}
                   onChange={(e) => {
                     setCustomOptionsText(e.target.value);
-                    setValidationError('');
+                    setValidationError("");
                   }}
-                  placeholder="Anna&#10;Bernat&#10;Carla&#10;David"
                   rows={6}
                   className="mt-3 w-full px-3 py-2 border-2 border-crayon-pink/50 hand-drawn-subtle
                     bg-card text-text-primary font-body
@@ -271,42 +247,24 @@ export default function Page() {
         {/* Validation error */}
         {validationError && (
           <div className="mb-4 p-4 bg-crayon-red/10 border-3 border-crayon-red hand-drawn-subtle">
-            <p className="font-body text-base text-crayon-red font-semibold">
-              {validationError}
-            </p>
+            <p className="font-body text-base text-crayon-red font-semibold">{validationError}</p>
           </div>
         )}
 
         {/* Preview section */}
         {previewOptions && previewOptions.length > 0 && (
           <div className="bg-crayon-yellow/10 border-3 border-crayon-yellow hand-drawn-subtle p-4 mb-6">
-            <h3 className="font-heading text-base font-bold text-crayon-yellow mb-2">
-              Vista prèvia ({previewOptions.length} opcions):
-            </h3>
+            <h3 className="font-heading text-base font-bold text-crayon-yellow mb-2">Vista prèvia ({previewOptions.length} opcions):</h3>
             <ul className="space-y-1 max-h-32 overflow-y-auto">
               {previewOptions.slice(0, 10).map((option, index) => (
                 <li key={option.id} className="font-body text-sm text-text-primary">
                   {index + 1}. {option.name}
                 </li>
               ))}
-              {previewOptions.length > 10 && (
-                <li className="font-body text-sm text-text-secondary italic">
-                  ... i {previewOptions.length - 10} més
-                </li>
-              )}
+              {previewOptions.length > 10 && <li className="font-body text-sm text-text-secondary italic">... i {previewOptions.length - 10} més</li>}
             </ul>
           </div>
         )}
-
-        {/* Question preview */}
-        <div className="bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn-subtle p-4 mb-6">
-          <h3 className="font-heading text-base font-bold text-crayon-purple mb-2">
-            Pregunta:
-          </h3>
-          <p className="font-heading text-xl font-bold text-text-primary">
-            Qui és l&apos;artista d&apos;avui?
-          </p>
-        </div>
 
         {/* Start button */}
         <button
@@ -319,8 +277,8 @@ export default function Page() {
             transition-all duration-200
             ${
               !sidePanelClient || isStarting
-                ? 'bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed'
-                : 'bg-crayon-green border-crayon-green shadow-playful-green hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0'
+                ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                : "bg-crayon-green border-crayon-green shadow-playful-green hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
             }
             flex items-center justify-center gap-3
           `}

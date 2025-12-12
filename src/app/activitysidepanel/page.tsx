@@ -1,18 +1,15 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  meet,
-  MeetSidePanelClient,
-} from '@googleworkspace/meet-addons/meet.addons';
-import { CLOUD_PROJECT_NUMBER } from '../../shared/constants';
-import type { Vote, PollState } from '../../types/poll.types';
-import { generateVoterId } from '../../utils/voteCalculations';
-import { useVoteChannel } from '../../hooks/useVoteChannel';
-import PollQuestion from '../../components/PollQuestion';
-import OptionList from '../../components/OptionList';
-import VoteButton from '../../components/VoteButton';
-import VoteConfirmation from '../../components/VoteConfirmation';
+import { useEffect, useState, useCallback } from "react";
+import { meet, MeetSidePanelClient } from "@googleworkspace/meet-addons/meet.addons";
+import { CLOUD_PROJECT_NUMBER } from "../../shared/constants";
+import type { Vote, PollState } from "../../types/poll.types";
+import { generateVoterId } from "../../utils/voteCalculations";
+import { useVoteChannel } from "../../hooks/useVoteChannel";
+import PollQuestion from "../../components/PollQuestion";
+import OptionList from "../../components/OptionList";
+import VoteButton from "../../components/VoteButton";
+import VoteConfirmation from "../../components/VoteConfirmation";
 
 /**
  * Activity side panel for voting
@@ -27,9 +24,9 @@ export default function Page() {
   const [voterId] = useState(() => generateVoterId());
 
   // Voting state
-  const [selectedOptionId, setSelectedOptionId] = useState('');
+  const [selectedOptionId, setSelectedOptionId] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
-  const [votedForName, setVotedForName] = useState('');
+  const [votedForName, setVotedForName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reveal state
@@ -57,11 +54,7 @@ export default function Page() {
   }, []);
 
   // Supabase Realtime channel for votes and reveal command
-  const { sendVote, sendRevealCommand } = useVoteChannel(
-    pollState?.pollId ?? null,
-    handleVoteReceived,
-    handleRevealResults
-  );
+  const { sendVote, sendRevealCommand } = useVoteChannel(pollState?.pollId ?? null, handleVoteReceived, handleRevealResults);
 
   /**
    * Handles vote submission via Supabase broadcast
@@ -72,7 +65,7 @@ export default function Page() {
     }
 
     if (!selectedOptionId) {
-      alert('Si us plau, selecciona una opció');
+      alert("Si us plau, selecciona una opció");
       return;
     }
 
@@ -86,18 +79,16 @@ export default function Page() {
       };
 
       // Find the name of the option that was voted for
-      const votedFor = pollState.options.find(
-        (option) => option.id === selectedOptionId
-      );
-      setVotedForName(votedFor?.name || 'Desconegut');
+      const votedFor = pollState.options.find((option) => option.id === selectedOptionId);
+      setVotedForName(votedFor?.name || "Desconegut");
 
       // Send vote via Supabase Realtime broadcast
       await sendVote(vote);
 
       setHasVoted(true);
     } catch (error) {
-      console.error('Error submitting vote:', error);
-      alert('Error enviant el vot. Torna-ho a provar.');
+      console.error("Error submitting vote:", error);
+      alert("Error enviant el vot. Torna-ho a provar.");
     } finally {
       setIsSubmitting(false);
     }
@@ -114,8 +105,8 @@ export default function Page() {
       await sendRevealCommand();
       setHasRevealed(true);
     } catch (error) {
-      console.error('Error revealing results:', error);
-      alert('Error revelant els resultats. Torna-ho a provar.');
+      console.error("Error revealing results:", error);
+      alert("Error revelant els resultats. Torna-ho a provar.");
     } finally {
       setIsRevealing(false);
     }
@@ -141,25 +132,30 @@ export default function Page() {
 
           // Check if this browser tab is the host for THIS specific poll
           // (comparing pollId ensures a new activity in the same session won't inherit host status)
-          const hostOfPollId = sessionStorage.getItem('hostOfPollId');
+          const hostOfPollId = sessionStorage.getItem("hostOfPollId");
           setIsHost(hostOfPollId === state.pollId);
         } catch (error) {
-          console.error('Error parsing poll state:', error);
+          console.error("Error parsing poll state:", error);
         }
       }
     }
     initializeSidePanelClient();
   }, []);
 
-
   if (!pollState) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-paper">
         <div className="text-center">
           <div className="mb-4 flex justify-center gap-2">
-            <span className="text-4xl animate-bounce" style={{ animationDelay: '0ms' }}>🎨</span>
-            <span className="text-4xl animate-bounce" style={{ animationDelay: '100ms' }}>✨</span>
-            <span className="text-4xl animate-bounce" style={{ animationDelay: '200ms' }}>🖌️</span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: "0ms" }}>
+              🎨
+            </span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: "100ms" }}>
+              ✨
+            </span>
+            <span className="text-4xl animate-bounce" style={{ animationDelay: "200ms" }}>
+              🖌️
+            </span>
           </div>
           <p className="font-heading text-xl text-text-secondary font-bold">Carregant...</p>
         </div>
@@ -188,8 +184,8 @@ export default function Page() {
                   transition-all duration-200
                   ${
                     isRevealing
-                      ? 'bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed'
-                      : 'bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0'
+                      ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                      : "bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
                   }
                   flex items-center justify-center gap-3
                 `}
@@ -201,7 +197,7 @@ export default function Page() {
                   </span>
                 ) : (
                   <>
-                    <span className="text-2xl">🎭</span>
+                    <span className="text-2xl">🏅</span>
                     Revelar resultats
                   </>
                 )}
@@ -216,9 +212,7 @@ export default function Page() {
                   <span className="text-2xl">📺</span>
                   <span className="text-2xl">🎉</span>
                 </div>
-                <p className="font-heading text-lg text-crayon-purple font-bold">
-                  Els resultats s&apos;estan mostrant a la pantalla principal
-                </p>
+                <p className="font-heading text-lg text-crayon-purple font-bold">Els resultats s&apos;estan mostrant a la pantalla principal</p>
               </div>
             )}
           </div>
@@ -235,11 +229,7 @@ export default function Page() {
               />
             </div>
 
-            <VoteButton
-              onClick={handleVoteSubmit}
-              disabled={!selectedOptionId || isSubmitting}
-              loading={isSubmitting}
-            />
+            <VoteButton onClick={handleVoteSubmit} disabled={!selectedOptionId || isSubmitting} loading={isSubmitting} />
           </div>
         )}
       </div>

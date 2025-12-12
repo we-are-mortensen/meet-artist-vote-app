@@ -34,9 +34,9 @@ This is a Next.js project that creates a Google Meet Add-on for voting on who is
     /sidepanel                 # Initial side panel for activity setup
       page.tsx                 # Poll configuration (predefined/custom options)
     page.tsx                   # Screenshare landing page
-    layout.tsx                 # Root layout
+    layout.tsx                 # Root layout with playful fonts
     icon.svg                   # App icon (green striped design)
-    globals.css                # Global styles with Tailwind
+    globals.css                # Global styles with playful theme
   /components                   # Reusable UI components
     PollQuestion.tsx           # Displays poll question in Catalan
     OptionList.tsx             # Lists poll options as radio buttons
@@ -44,7 +44,7 @@ This is a Next.js project that creates a Google Meet Add-on for voting on who is
     VoteConfirmation.tsx       # Post-vote confirmation message
     VoteResults.tsx            # Results display with bars and percentages
   /data
-    predefinedOptions.json     # Predefined poll option lists
+    predefinedOptions.json     # Predefined poll option lists (Mortensen team)
   /hooks
     useVoteChannel.ts          # Supabase Realtime hook for vote pub/sub
   /lib
@@ -89,7 +89,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 
 ## Google Meet Add-on Architecture
 
-### Three Main Components
+### Four Main Components
 
 1. **Screenshare Landing Page** ([src/app/page.tsx](src/app/page.tsx))
    - Entry point for installing/opening the add-on
@@ -101,7 +101,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
    - Shown to the activity initiator for setup
    - Poll configuration interface:
      - Radio buttons to choose between predefined or custom options
-     - Dropdown to select from 3 predefined lists (default, team, simple)
+     - Dropdown to select from 3 predefined lists (Mortensen, Dev, Disseny)
      - Textarea to enter custom options (one per line)
      - Validation: 2-50 options, no duplicates
      - Preview of selected options
@@ -111,6 +111,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
      - `sidePanelUrl`: URL for activity side panel
      - `additionalData`: JSON string with PollState (includes options array)
    - After starting, redirects to activity side panel
+   - **Host Detection**: Sets `sessionStorage.setItem('hostOfPollId', pollId)` before redirect
 
 3. **Activity Side Panel** ([src/app/activitysidepanel/page.tsx](src/app/activitysidepanel/page.tsx))
    - Shown to all participants during the activity
@@ -120,6 +121,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
    - Submit vote button
    - Uses Supabase Realtime broadcast to send votes
    - Shows confirmation after voting
+   - **Host-only features**: "Revelar resultats" button only shown to activity host
+   - Host detection via `sessionStorage.getItem('hostOfPollId') === pollId`
 
 4. **Main Stage** ([src/app/mainstage/page.tsx](src/app/mainstage/page.tsx))
    - Large screen view shown to all participants
@@ -138,6 +141,7 @@ The app implements a complete artist voting system:
 - **Results**: Real-time display with vote counts, percentages, and winner announcement
 - **Data Flow**: Supabase Realtime Broadcast for real-time vote synchronization
 - **Validation**: Input validation for custom options (min 2, max 50, no duplicates)
+- **Host Detection**: Uses sessionStorage to track which browser tab started the poll
 
 ## Development Setup
 
@@ -167,9 +171,9 @@ npm start
 
 ### Poll Configuration
 - **Predefined Lists**: 3 ready-to-use lists stored in [src/data/predefinedOptions.json](src/data/predefinedOptions.json)
-  - "Llista per defecte": 8 common Catalan names
-  - "Equip de treball": 7 work roles
-  - "Llista simple": 4 basic options (A, B, C, D)
+  - "Mortensen": Full team (11 members) - Adri, Anita, Ana, Anto, Edwin, Ester, Maria, Marie, Naomí, Nika, Pau
+  - "Dev": Development team (5 members) - Adri, Edwin, Marie, Nika, Pau
+  - "Disseny": Design team (5 members) - Anita, Ana, Ester, Maria, Naomí
 - **Custom Lists**: Initiator can create custom options via textarea
   - One option per line
   - Validation: minimum 2, maximum 50 options
@@ -189,12 +193,20 @@ npm start
 - **Winner Announcement**: Crown emoji and highlight for winning option
 - **Tie Detection**: Special message when multiple options are tied for first place
 
+### Host Detection System
+The app uses `sessionStorage` to reliably identify the activity host:
+1. When the initiator clicks "Començar votació" in sidepanel, the `pollId` is saved to sessionStorage
+2. After redirect to activitysidepanel, the stored `pollId` is compared with the current poll's ID
+3. If they match, the user is the host and sees host-only features (like the reveal button)
+4. This approach handles multiple activities in the same browser session correctly
+
 ### Data Flow
 ```
 Setup Side Panel (Initiator)
   ↓ (select/create poll options)
 Start Activity
   ↓ (pass PollState with options in additionalData)
+  ↓ (save pollId to sessionStorage for host detection)
 Main Stage (initialize with options, subscribe to Supabase channel)
   ↓
 Activity Side Panel (all participants, connect to same Supabase channel)
@@ -229,13 +241,42 @@ If there's a tie in the votes:
 3. Run the tiebreaker poll with same flow
 4. Display final winner
 
-## Styling Notes
+## Styling
 
-- Uses Tailwind CSS 4 with PostCSS
-- Global styles in [src/app/globals.css](src/app/globals.css)
+The app uses a **playful, childish theme** inspired by children's drawing and coloring books.
+
+### Theme System ([src/app/globals.css](src/app/globals.css))
+
+**Crayon Color Palette:**
+- `--crayon-red`: #EE4266
+- `--crayon-orange`: #FFA62F
+- `--crayon-yellow`: #FFD23F
+- `--crayon-green`: #06D6A0
+- `--crayon-blue`: #118AB2
+- `--crayon-purple`: #9B5DE5
+- `--crayon-pink`: #F15BB5
+
+**Background Colors:**
+- `--bg-paper`: #FFF8E7 (light) / #2D2A24 (dark)
+- `--bg-card`: #FFFFFF (light) / #3D3A34 (dark)
+
+**Typography:**
+- Headings: 'Baloo 2' (playful, rounded)
+- Body: 'Nunito' (friendly, readable)
+
+**Utility Classes:**
+- `.hand-drawn` - Wobbly organic border-radius effect
+- `.shadow-playful` - Colorful offset shadows
+- `.hover-bounce` - Bouncy hover animation
+- `.animate-wiggle` - Fun wiggle animation
+- `.bg-confetti` - Scattered colorful dots background
+- `.paper-texture` - Subtle paper texture overlay
+- `.underline-crayon` - Crayon-style text underline
+
+**Features:**
 - Dark mode support via `prefers-color-scheme`
-- CSS variables: `--background`, `--foreground`
-- Font: Arial, Helvetica, sans-serif
+- CSS custom properties for theme tokens
+- Tailwind CSS 4 with `@theme inline` directive
 
 ## Git Information
 
@@ -276,8 +317,8 @@ See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing instructions 
 - **CLAUDE.md** (this file): Complete architecture, features, and technical details
 - **IMPLEMENTATION_STATUS.md**: Current implementation status and completion summary
 - **TESTING_GUIDE.md**: Step-by-step testing instructions and test scenarios
-- **POLL_OPTIONS_MODIFICATION_PLAN.md**: Implementation plan for poll options feature (completed)
 
 ### Archived Documentation
 - **DEVELOPMENT_PLAN.md.archived**: Original development plan (superseded)
 - **IMPLEMENTATION_SUMMARY.md.archived**: Old implementation summary (outdated)
+- **POLL_OPTIONS_MODIFICATION_PLAN.md.archived**: Poll options feature plan (completed)

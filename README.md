@@ -4,17 +4,18 @@ A Google Meet add-on for voting on "who is today's artist" ("Qui és l'artista d
 
 ## Features
 
-- **Poll Configuration**: Choose from predefined lists or create custom options (2-50 items)
+- **Poll Configuration**: Choose from predefined team lists (Mortensen, Dev, Disseny) or create custom options (2-50 items)
 - **Anonymous Voting**: No registration required - participants vote immediately
 - **Real-time Results**: Live vote counts, percentages, and visual progress bars
 - **Winner Detection**: Automatic winner announcement with crown emoji or tie detection
+- **Playful Theme**: Colorful, childish styling inspired by children's coloring books
 - **Catalan Interface**: All user-facing content in Catalan
 
 ## Technology Stack
 
 - **Next.js 16.0.5** with App Router
 - **React 19.2.0** with TypeScript 5
-- **Tailwind CSS 4** for styling
+- **Tailwind CSS 4** with playful theme (Baloo 2 + Nunito fonts)
 - **Google Meet Add-ons SDK** v1.2.0
 - **Supabase Realtime** for vote synchronization
 
@@ -60,9 +61,9 @@ The app is deployed to GitHub Pages:
 ```
 /src
   /app                     # Next.js pages
-    /sidepanel            # Poll configuration
-    /activitysidepanel    # Voting interface
-    /mainstage            # Results display
+    /sidepanel            # Poll configuration (host only)
+    /activitysidepanel    # Voting interface (all participants)
+    /mainstage            # Results display (shared view)
   /components             # Reusable UI components
     OptionList.tsx        # Poll options selector
     VoteResults.tsx       # Results visualization
@@ -70,7 +71,7 @@ The app is deployed to GitHub Pages:
     VoteButton.tsx        # Submit button
     VoteConfirmation.tsx  # Post-vote confirmation
   /data
-    predefinedOptions.json # Predefined poll lists
+    predefinedOptions.json # Predefined poll lists (Mortensen team)
   /hooks
     useVoteChannel.ts     # Supabase Realtime hook
   /lib
@@ -88,11 +89,17 @@ The app is deployed to GitHub Pages:
 1. **Start a Google Meet call**
 2. **Share screen** with the add-on URL
 3. **Configure poll** (as initiator):
-   - Select predefined list, OR
+   - Select predefined list (Mortensen, Dev, or Disseny), OR
    - Enter custom options (one per line)
 4. **Start voting** - All participants see options immediately
 5. **Vote** - Select option and submit
 6. **View results** - Real-time display on main stage
+
+### Predefined Lists
+
+- **Mortensen**: Adri, Anita, Ana, Anto, Edwin, Ester, Maria, Marie, Naomí, Nika, Pau
+- **Dev**: Adri, Edwin, Marie, Nika, Pau
+- **Disseny**: Anita, Ana, Ester, Maria, Naomí
 
 ## Testing
 
@@ -104,7 +111,6 @@ See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing instructions.
 - **CLAUDE.md**: Complete architecture, features, and technical details
 - **IMPLEMENTATION_STATUS.md**: Current status and completion summary
 - **TESTING_GUIDE.md**: Testing procedures and scenarios
-- **POLL_OPTIONS_MODIFICATION_PLAN.md**: Implementation plan (completed)
 
 ## Configuration
 

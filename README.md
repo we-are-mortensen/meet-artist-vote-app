@@ -16,6 +16,7 @@ A Google Meet add-on for voting on "who is today's artist" ("Qui és l'artista d
 - **React 19.2.0** with TypeScript 5
 - **Tailwind CSS 4** for styling
 - **Google Meet Add-ons SDK** v1.2.0
+- **Supabase Realtime** for vote synchronization
 
 ## Getting Started
 
@@ -24,6 +25,7 @@ A Google Meet add-on for voting on "who is today's artist" ("Qui és l'artista d
 - Node.js installed
 - Google Meet Add-on registered in Google Workspace Marketplace
 - Cloud Project Number: `315905898182`
+- Supabase project with Realtime enabled
 
 ### Installation
 
@@ -69,6 +71,10 @@ The app is deployed to GitHub Pages:
     VoteConfirmation.tsx  # Post-vote confirmation
   /data
     predefinedOptions.json # Predefined poll lists
+  /hooks
+    useVoteChannel.ts     # Supabase Realtime hook
+  /lib
+    supabase.ts           # Supabase client
   /types
     poll.types.ts         # TypeScript definitions
   /utils
@@ -104,7 +110,17 @@ See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing instructions.
 
 ### Environment Variables
 
+Create a `.env` file with:
+
+```
+NEXT_PUBLIC_DEBUG=1
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
+```
+
 - `NEXT_PUBLIC_DEBUG=1` - Enables localhost mode for development
+- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` - Supabase anonymous key
 
 ### Constants
 
@@ -116,6 +132,7 @@ See [src/shared/constants.ts](src/shared/constants.ts) for:
 ## Learn More
 
 - [Google Meet Add-ons Documentation](https://developers.google.com/meet/add-ons)
+- [Supabase Realtime Documentation](https://supabase.com/docs/guides/realtime)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Tailwind CSS](https://tailwindcss.com)
 

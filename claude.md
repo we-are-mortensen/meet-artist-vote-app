@@ -19,6 +19,7 @@ This is a Next.js project that creates a Google Meet Add-on for voting on who is
 - **Language**: TypeScript 5
 - **Styling**: Tailwind CSS 4, PostCSS
 - **Google Meet SDK**: @googleworkspace/meet-addons ^1.2.0
+- **Real-time Communication**: Supabase Realtime (Broadcast)
 - **Build Tool**: Next.js with Turbopack
 
 ## Project Structure
@@ -44,6 +45,10 @@ This is a Next.js project that creates a Google Meet Add-on for voting on who is
     VoteResults.tsx            # Results display with bars and percentages
   /data
     predefinedOptions.json     # Predefined poll option lists
+  /hooks
+    useVoteChannel.ts          # Supabase Realtime hook for vote pub/sub
+  /lib
+    supabase.ts                # Supabase client singleton
   /shared
     constants.ts               # Configuration constants
   /types
@@ -72,6 +77,15 @@ export const ACTIVITY_SIDE_PANEL_URL = SITE_BASE + '/activitysidepanel';
 ```
 
 Debug mode is controlled by environment variable: `process.env.NEXT_PUBLIC_DEBUG === '1'`
+
+### Supabase Configuration
+
+The app uses Supabase Realtime for vote synchronization. Required environment variables in `.env`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
+```
 
 ## Google Meet Add-on Architecture
 
@@ -104,14 +118,14 @@ Debug mode is controlled by environment variable: `process.env.NEXT_PUBLIC_DEBUG
    - Displays poll question and list of options as radio buttons
    - Generates anonymous voter ID on load
    - Submit vote button
-   - Uses `notifyMainStage()` to send vote messages
+   - Uses Supabase Realtime broadcast to send votes
    - Shows confirmation after voting
 
 4. **Main Stage** ([src/app/mainstage/page.tsx](src/app/mainstage/page.tsx))
    - Large screen view shown to all participants
    - Creates `MeetMainStageClient`
    - Gets poll options from starting state via `getActivityStartingState()`
-   - Listens for vote messages via `on('frameToFrameMessage')`
+   - Subscribes to Supabase Realtime channel for vote updates
    - Real-time vote aggregation and results display
    - Shows vote counts, percentages, progress bars
    - Announces winner (or tie) when voting completes
@@ -122,7 +136,7 @@ The app implements a complete artist voting system:
 - **Poll Setup**: Initiator chooses between predefined lists or custom options
 - **Voting**: Participants vote anonymously for their favorite option
 - **Results**: Real-time display with vote counts, percentages, and winner announcement
-- **Data Flow**: Frame-to-frame messaging for real-time synchronization
+- **Data Flow**: Supabase Realtime Broadcast for real-time vote synchronization
 - **Validation**: Input validation for custom options (min 2, max 50, no duplicates)
 
 ## Development Setup
@@ -146,6 +160,8 @@ npm start
 
 ### Environment Variables
 - `NEXT_PUBLIC_DEBUG=1` - Enables localhost mode, otherwise uses GitHub Pages URL
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` - Supabase anonymous/public key
 
 ## Key Features
 
@@ -161,7 +177,7 @@ npm start
 
 ### Voting System
 - **Anonymous Voting**: No registration required, participants vote immediately
-- **Vote Submission**: Selected option sent to main stage via frame-to-frame messaging
+- **Vote Submission**: Selected option broadcast via Supabase Realtime channel
 - **Vote Confirmation**: Success message shows which option was voted for
 - **Single Vote**: Each voter can only vote once (identified by anonymous voter ID)
 
@@ -179,12 +195,23 @@ Setup Side Panel (Initiator)
   ↓ (select/create poll options)
 Start Activity
   ↓ (pass PollState with options in additionalData)
-Main Stage (initialize with options)
+Main Stage (initialize with options, subscribe to Supabase channel)
   ↓
-Activity Side Panel (all participants)
-  ↓ (vote for option, send VOTE_CAST message)
-Main Stage (aggregate votes, calculate results, display winner)
+Activity Side Panel (all participants, connect to same Supabase channel)
+  ↓ (vote for option, broadcast via Supabase Realtime)
+Main Stage (receive votes via Supabase subscription, aggregate, display winner)
 ```
+
+### Supabase Realtime Integration
+
+The app uses Supabase Realtime Broadcast for vote synchronization:
+
+- **Channel naming**: `poll-votes-${pollId}` - isolates different poll sessions
+- **No database**: Uses Broadcast mode (ephemeral pub/sub, no persistence)
+- **useVoteChannel hook** ([src/hooks/useVoteChannel.ts](src/hooks/useVoteChannel.ts)):
+  - `sendVote(vote)` - Broadcasts vote to channel
+  - `onVoteReceived` callback - Handles incoming votes
+  - Automatic cleanup on component unmount
 
 ### Google Meet Add-ons SDK Key Methods
 
@@ -192,9 +219,7 @@ Main Stage (aggregate votes, calculate results, display winner)
 - `session.createMainStageClient()` - Get main stage client
 - `session.createSidePanelClient()` - Get side panel client
 - `mainStageClient.getActivityStartingState()` - Get initial data (includes poll options)
-- `mainStageClient.on('frameToFrameMessage', callback)` - Listen for vote messages
 - `sidePanelClient.startActivity({ mainStageUrl, sidePanelUrl, additionalData })` - Start activity
-- `sidePanelClient.notifyMainStage(payload)` - Send vote to main stage
 
 ### Future Enhancement: Tiebreaker Poll
 

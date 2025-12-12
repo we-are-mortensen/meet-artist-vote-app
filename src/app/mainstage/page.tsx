@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   meet,
-  FrameToFrameMessage,
   MeetMainStageClient,
 } from '@googleworkspace/meet-addons/meet.addons';
 import { CLOUD_PROJECT_NUMBER } from '../../shared/constants';
@@ -11,10 +10,10 @@ import type {
   PollOption,
   Vote,
   PollState,
-  PollMessage,
   VoteResults as VoteResultsType,
 } from '../../types/poll.types';
 import { calculateResults } from '../../utils/voteCalculations';
+import { useVoteChannel } from '../../hooks/useVoteChannel';
 import VoteResults from '../../components/VoteResults';
 
 /**
@@ -26,6 +25,18 @@ export default function Page() {
   const [options, setOptions] = useState<PollOption[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
   const [results, setResults] = useState<VoteResultsType | null>(null);
+
+  // Handle incoming votes from Supabase Realtime
+  const handleVoteReceived = useCallback((vote: Vote) => {
+    setVotes((prev) => {
+      // Replace vote if same voter (allow vote changes)
+      const filtered = prev.filter((v) => v.voterId !== vote.voterId);
+      return [...filtered, vote];
+    });
+  }, []);
+
+  // Subscribe to Supabase Realtime channel for votes
+  useVoteChannel(pollState?.pollId ?? null, handleVoteReceived);
 
   /**
    * Creates a MeetMainStageClient to control the main stage of the add-on.
@@ -55,41 +66,6 @@ export default function Page() {
     }
   }
 
-  /**
-   * Listens for frame-to-frame messages from side panels
-   * Handles vote submissions and state updates
-   */
-  function listenForMessages(mainStageClient: MeetMainStageClient) {
-    mainStageClient.on(
-      'frameToFrameMessage',
-      (message: FrameToFrameMessage) => {
-        try {
-          const pollMessage = JSON.parse(message.payload) as PollMessage;
-
-          switch (pollMessage.type) {
-            case 'VOTE_CAST':
-              const newVote = pollMessage.payload as Vote;
-              setVotes((prev) => {
-                // Replace vote if same voter (allow vote changes)
-                const filtered = prev.filter((v) => v.voterId !== newVote.voterId);
-                return [...filtered, newVote];
-              });
-              break;
-
-            case 'STATE_UPDATE':
-              const updatedState = pollMessage.payload as PollState;
-              setPollState(updatedState);
-              setOptions(updatedState.options);
-              setVotes(updatedState.votes);
-              break;
-          }
-        } catch (error) {
-          console.error('Error handling frame-to-frame message:', error);
-        }
-      }
-    );
-  }
-
   // Recalculate results whenever votes or options change
   useEffect(() => {
     if (options.length > 0) {
@@ -101,12 +77,11 @@ export default function Page() {
   useEffect(() => {
     /**
      * Initialize the main stage by initializing the client, then using that
-     * client to get the starting state and listen for messages
+     * client to get the starting state
      */
     async function initializeMainStage() {
       const client = await initializeMainStageClient();
       await setStartingState(client);
-      listenForMessages(client);
     }
     initializeMainStage();
   }, []);

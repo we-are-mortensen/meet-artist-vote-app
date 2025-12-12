@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   meet,
   MeetSidePanelClient,
 } from '@googleworkspace/meet-addons/meet.addons';
 import { CLOUD_PROJECT_NUMBER } from '../../shared/constants';
-import type { Vote, PollState, PollMessage, PollOption } from '../../types/poll.types';
+import type { Vote, PollState } from '../../types/poll.types';
 import { generateParticipantId } from '../../utils/voteCalculations';
+import { useVoteChannel } from '../../hooks/useVoteChannel';
 import PollQuestion from '../../components/PollQuestion';
 import OptionList from '../../components/OptionList';
 import VoteButton from '../../components/VoteButton';
@@ -31,12 +32,26 @@ export default function Page() {
   const [votedForName, setVotedForName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Handle incoming votes from other participants (updates local state)
+  const handleVoteReceived = useCallback((vote: Vote) => {
+    setPollState((prev) => {
+      if (!prev) return prev;
+      const filteredVotes = prev.votes.filter((v) => v.voterId !== vote.voterId);
+      return {
+        ...prev,
+        votes: [...filteredVotes, vote],
+      };
+    });
+  }, []);
+
+  // Supabase Realtime channel for votes
+  const { sendVote } = useVoteChannel(pollState?.pollId ?? null, handleVoteReceived);
 
   /**
-   * Handles vote submission
+   * Handles vote submission via Supabase broadcast
    */
   async function handleVoteSubmit() {
-    if (!sidePanelClient || !selectedOptionId || !pollState) {
+    if (!selectedOptionId || !pollState) {
       return;
     }
 
@@ -61,14 +76,8 @@ export default function Page() {
       );
       setVotedForName(votedFor?.name || 'Desconegut');
 
-      // Notify main stage about the vote
-      const message: PollMessage = {
-        type: 'VOTE_CAST',
-        payload: vote,
-        timestamp: Date.now(),
-      };
-
-      await sidePanelClient.notifyMainStage(JSON.stringify(message));
+      // Send vote via Supabase Realtime broadcast
+      await sendVote(vote);
 
       setHasVoted(true);
     } catch (error) {
@@ -104,38 +113,6 @@ export default function Page() {
     initializeSidePanelClient();
   }, []);
 
-  // Listen for messages from main stage (via broadcast)
-  useEffect(() => {
-    if (!sidePanelClient) return;
-
-    sidePanelClient.on('frameToFrameMessage', (message) => {
-      try {
-        const pollMessage = JSON.parse(message.payload) as PollMessage;
-
-        switch (pollMessage.type) {
-          case 'VOTE_CAST':
-            // Track votes for progress indication (optional)
-            const newVote = pollMessage.payload as Vote;
-            setPollState((prev) => {
-              if (!prev) return prev;
-              // Remove previous vote from same voter, add new one
-              const filteredVotes = prev.votes.filter((v) => v.voterId !== newVote.voterId);
-              return {
-                ...prev,
-                votes: [...filteredVotes, newVote],
-              };
-            });
-            break;
-
-          case 'STATE_UPDATE':
-            setPollState(pollMessage.payload as PollState);
-            break;
-        }
-      } catch (error) {
-        console.error('Error handling message:', error);
-      }
-    });
-  }, [sidePanelClient]);
 
   if (!pollState) {
     return (

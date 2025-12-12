@@ -41,7 +41,9 @@ The Artist Vote Google Meet Add-on has been fully implemented with all planned f
   - ✅ [PollQuestion.tsx](src/components/PollQuestion.tsx) - Question display
   - ✅ [VoteButton.tsx](src/components/VoteButton.tsx) - Submit button
   - ✅ [VoteConfirmation.tsx](src/components/VoteConfirmation.tsx) - Post-vote confirmation
-- ✅ Frame-to-frame messaging for real-time sync
+- ✅ Supabase Realtime Broadcast for real-time vote sync
+  - ✅ [useVoteChannel.ts](src/hooks/useVoteChannel.ts) - Vote pub/sub hook
+  - ✅ [supabase.ts](src/lib/supabase.ts) - Supabase client singleton
 - ✅ All content in Catalan
 - ✅ Dark mode support
 - ✅ Responsive design
@@ -54,8 +56,8 @@ The Artist Vote Google Meet Add-on has been fully implemented with all planned f
 /src
   /app
     /sidepanel/page.tsx           ✅ Poll configuration interface
-    /activitysidepanel/page.tsx   ✅ Voting interface
-    /mainstage/page.tsx           ✅ Results display
+    /activitysidepanel/page.tsx   ✅ Voting interface (Supabase broadcast)
+    /mainstage/page.tsx           ✅ Results display (Supabase subscription)
     page.tsx                      ✅ Landing page
   /components
     OptionList.tsx                ✅ Poll options selector
@@ -65,6 +67,10 @@ The Artist Vote Google Meet Add-on has been fully implemented with all planned f
     VoteConfirmation.tsx          ✅ Success message
   /data
     predefinedOptions.json        ✅ 3 predefined lists
+  /hooks
+    useVoteChannel.ts             ✅ Supabase Realtime vote pub/sub hook
+  /lib
+    supabase.ts                   ✅ Supabase client singleton
   /types
     poll.types.ts                 ✅ Complete type definitions
   /utils
@@ -80,13 +86,21 @@ The Artist Vote Google Meet Add-on has been fully implemented with all planned f
 - Voting from registered participant list
 - Real-time results display
 
-### Phase 2: Poll Options Migration (Current)
+### Phase 2: Poll Options Migration
 - Replaced self-registration with predefined/custom options
 - Renamed `Participant` → `PollOption` throughout codebase
 - Renamed `ParticipantList` component → `OptionList`
 - Added JSON-based predefined lists
 - Added custom list validation
 - Maintained backward compatibility during migration
+
+### Phase 3: Supabase Realtime Integration (Current)
+- Replaced Google Meet frame-to-frame messaging with Supabase Realtime Broadcast
+- Created `useVoteChannel` hook for vote pub/sub
+- Activity Side Panel broadcasts votes via Supabase channel
+- Main Stage subscribes to Supabase channel for real-time updates
+- Channel isolation by `pollId` prevents cross-session interference
+- No database required (uses Broadcast mode for ephemeral pub/sub)
 
 ---
 
@@ -137,13 +151,15 @@ Planned but not yet implemented:
 ## 📊 Statistics
 
 - **Total Components**: 5
+- **Total Hooks**: 1 (useVoteChannel)
 - **Total Utility Functions**: 10
 - **Total Type Definitions**: 11
 - **Predefined Lists**: 3
 - **Lines of Code**: ~2000+
 - **Languages**: TypeScript, React, Tailwind CSS
+- **Real-time Backend**: Supabase Realtime (Broadcast)
 - **All Content**: Catalan (100%)
 
 ---
 
-Last Updated: 2025-11-28
+Last Updated: 2025-12-12

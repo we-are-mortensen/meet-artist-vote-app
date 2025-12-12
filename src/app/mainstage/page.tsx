@@ -17,7 +17,8 @@ import { useVoteChannel } from '../../hooks/useVoteChannel';
 import VoteResults from '../../components/VoteResults';
 
 /**
- * Main stage view - displays voting results in real-time
+ * Main stage view - displays voting results
+ * Results are hidden until the host reveals them
  * @see {@link https://developers.google.com/meet/add-ons/guides/overview#main-stage}
  */
 export default function Page() {
@@ -25,6 +26,7 @@ export default function Page() {
   const [options, setOptions] = useState<PollOption[]>([]);
   const [votes, setVotes] = useState<Vote[]>([]);
   const [results, setResults] = useState<VoteResultsType | null>(null);
+  const [resultsRevealed, setResultsRevealed] = useState(false);
 
   // Handle incoming votes from Supabase Realtime
   const handleVoteReceived = useCallback((vote: Vote) => {
@@ -35,8 +37,13 @@ export default function Page() {
     });
   }, []);
 
-  // Subscribe to Supabase Realtime channel for votes
-  useVoteChannel(pollState?.pollId ?? null, handleVoteReceived);
+  // Handle reveal results command
+  const handleRevealResults = useCallback(() => {
+    setResultsRevealed(true);
+  }, []);
+
+  // Subscribe to Supabase Realtime channel for votes and reveal command
+  useVoteChannel(pollState?.pollId ?? null, handleVoteReceived, handleRevealResults);
 
   /**
    * Creates a MeetMainStageClient to control the main stage of the add-on.
@@ -99,38 +106,60 @@ export default function Page() {
     );
   }
 
+  // Show results if revealed
+  if (resultsRevealed && results) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+        <VoteResults results={results} votingInProgress={false} />
+      </div>
+    );
+  }
+
+  // Show waiting state with vote count (results not revealed yet)
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      {results ? (
-        <VoteResults results={results} votingInProgress={pollState.status === 'voting'} />
-      ) : (
-        <div className="max-w-4xl mx-auto text-center py-12">
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Qui és l&apos;artista d&apos;avui?
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400">
-              Esperant vots...
-            </p>
+      <div className="max-w-4xl mx-auto text-center py-12">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            Qui és l&apos;artista d&apos;avui?
+          </h1>
+          <div className="mt-8 mb-6">
+            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <span className="text-5xl font-bold text-blue-600 dark:text-blue-400">
+                {votes.length}
+              </span>
+            </div>
           </div>
-          <div className="inline-block animate-pulse">
-            <svg
-              className="h-24 w-24 text-gray-400 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-              />
-            </svg>
-          </div>
+          <p className="text-2xl font-semibold text-gray-700 dark:text-gray-300">
+            {votes.length === 1 ? 'vot rebut' : 'vots rebuts'}
+          </p>
+          <p className="text-lg text-gray-500 dark:text-gray-400 mt-4">
+            Esperant que es revelin els resultats...
+          </p>
         </div>
-      )}
+        <div className="inline-block animate-pulse">
+          <svg
+            className="h-16 w-16 text-gray-400 mx-auto"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }

@@ -32,6 +32,10 @@ export default function Page() {
   const [votedForName, setVotedForName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reveal state
+  const [hasRevealed, setHasRevealed] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
+
   // Handle incoming votes from other participants (updates local state)
   const handleVoteReceived = useCallback((vote: Vote) => {
     setPollState((prev) => {
@@ -44,8 +48,17 @@ export default function Page() {
     });
   }, []);
 
-  // Supabase Realtime channel for votes
-  const { sendVote } = useVoteChannel(pollState?.pollId ?? null, handleVoteReceived);
+  // Handle reveal results command received from others
+  const handleRevealResults = useCallback(() => {
+    setHasRevealed(true);
+  }, []);
+
+  // Supabase Realtime channel for votes and reveal command
+  const { sendVote, sendRevealCommand } = useVoteChannel(
+    pollState?.pollId ?? null,
+    handleVoteReceived,
+    handleRevealResults
+  );
 
   /**
    * Handles vote submission via Supabase broadcast
@@ -84,6 +97,24 @@ export default function Page() {
       alert('Error enviant el vot. Torna-ho a provar.');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  /**
+   * Handles revealing results via Supabase broadcast
+   */
+  async function handleRevealClick() {
+    if (hasRevealed || isRevealing) return;
+
+    setIsRevealing(true);
+    try {
+      await sendRevealCommand();
+      setHasRevealed(true);
+    } catch (error) {
+      console.error('Error revealing results:', error);
+      alert('Error revelant els resultats. Torna-ho a provar.');
+    } finally {
+      setIsRevealing(false);
     }
   }
 
@@ -130,8 +161,64 @@ export default function Page() {
         <PollQuestion round={pollState.round} />
 
         {hasVoted ? (
-          /* Vote confirmation */
-          <VoteConfirmation votedForName={votedForName} />
+          /* Vote confirmation with reveal button */
+          <div>
+            <VoteConfirmation votedForName={votedForName} />
+
+            {/* Reveal Results Button */}
+            {!hasRevealed && (
+              <button
+                onClick={handleRevealClick}
+                disabled={isRevealing}
+                className={`
+                  w-full mt-6 py-4 px-6 rounded-lg font-bold text-lg
+                  transition-all duration-200
+                  ${
+                    isRevealing
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800'
+                  }
+                  text-white shadow-lg
+                `}
+              >
+                {isRevealing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg
+                      className="animate-spin h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Revelant...
+                  </span>
+                ) : (
+                  'Revelar resultats'
+                )}
+              </button>
+            )}
+
+            {/* Results revealed confirmation */}
+            {hasRevealed && (
+              <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500 rounded-lg text-center">
+                <p className="text-purple-700 dark:text-purple-300 font-semibold">
+                  Els resultats s&apos;estan mostrant a la pantalla principal
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           /* Voting interface */
           <div>

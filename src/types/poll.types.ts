@@ -75,21 +75,16 @@ export type VoteResults = {
 };
 
 /**
- * Message type for Supabase Realtime broadcast
+ * Message types for Supabase Realtime broadcast
  */
-export type MessageType = 'VOTE_CAST';
+export type MessageType = 'VOTE_CAST' | 'REVEAL_RESULTS';
 
 /**
  * Supabase Realtime message structure
  */
-export type PollMessage = {
-  /** Type of message being sent */
-  type: MessageType;
-  /** Message payload */
-  payload: Vote;
-  /** Timestamp when message was sent */
-  timestamp: number;
-};
+export type PollMessage =
+  | { type: 'VOTE_CAST'; payload: Vote; timestamp: number }
+  | { type: 'REVEAL_RESULTS'; payload: null; timestamp: number };
 
 /**
  * Predefined list of poll options loaded from JSON

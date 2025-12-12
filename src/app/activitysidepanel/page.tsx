@@ -132,17 +132,17 @@ export default function Page() {
       const client = await session.createSidePanelClient();
       setSidePanelClient(client);
 
-      // Check if this browser tab is the activity host
-      // (sessionStorage flag is set in sidepanel before redirect - only the host sees that page)
-      const isActivityHost = sessionStorage.getItem('isActivityHost') === 'true';
-      setIsHost(isActivityHost);
-
       // Get the starting poll state
       const startingState = await client.getActivityStartingState();
       if (startingState.additionalData) {
         try {
           const state = JSON.parse(startingState.additionalData) as PollState;
           setPollState(state);
+
+          // Check if this browser tab is the host for THIS specific poll
+          // (comparing pollId ensures a new activity in the same session won't inherit host status)
+          const hostOfPollId = sessionStorage.getItem('hostOfPollId');
+          setIsHost(hostOfPollId === state.pollId);
         } catch (error) {
           console.error('Error parsing poll state:', error);
         }

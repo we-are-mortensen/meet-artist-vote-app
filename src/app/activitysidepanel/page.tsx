@@ -132,9 +132,10 @@ export default function Page() {
       const client = await session.createSidePanelClient();
       setSidePanelClient(client);
 
-      // Detect if current user is the host (activity initiator)
-      const frameOpenReason = await client.getFrameOpenReason();
-      setIsHost(frameOpenReason === 'START_ACTIVITY');
+      // Check if this browser tab is the activity host
+      // (sessionStorage flag is set in sidepanel before redirect - only the host sees that page)
+      const isActivityHost = sessionStorage.getItem('isActivityHost') === 'true';
+      setIsHost(isActivityHost);
 
       // Get the starting poll state
       const startingState = await client.getActivityStartingState();

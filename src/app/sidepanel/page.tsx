@@ -122,6 +122,8 @@ export default function Page() {
         additionalData: JSON.stringify(pollState),
       });
 
+      // Mark this browser tab as the activity host before redirecting
+      sessionStorage.setItem('isActivityHost', 'true');
       window.location.replace(ACTIVITY_SIDE_PANEL_URL + window.location.search);
     } catch (error) {
       console.error('Error starting voting activity:', error);

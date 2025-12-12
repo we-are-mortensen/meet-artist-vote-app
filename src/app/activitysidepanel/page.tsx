@@ -36,6 +36,9 @@ export default function Page() {
   const [hasRevealed, setHasRevealed] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
 
+  // Host detection - only the activity initiator can reveal results
+  const [isHost, setIsHost] = useState(false);
+
   // Handle incoming votes from other participants (updates local state)
   const handleVoteReceived = useCallback((vote: Vote) => {
     setPollState((prev) => {
@@ -129,6 +132,10 @@ export default function Page() {
       const client = await session.createSidePanelClient();
       setSidePanelClient(client);
 
+      // Detect if current user is the host (activity initiator)
+      const frameOpenReason = await client.getFrameOpenReason();
+      setIsHost(frameOpenReason === 'START_ACTIVITY');
+
       // Get the starting poll state
       const startingState = await client.getActivityStartingState();
       if (startingState.additionalData) {
@@ -165,8 +172,8 @@ export default function Page() {
           <div>
             <VoteConfirmation votedForName={votedForName} />
 
-            {/* Reveal Results Button */}
-            {!hasRevealed && (
+            {/* Reveal Results Button - Only visible to host */}
+            {!hasRevealed && isHost && (
               <button
                 onClick={handleRevealClick}
                 disabled={isRevealing}

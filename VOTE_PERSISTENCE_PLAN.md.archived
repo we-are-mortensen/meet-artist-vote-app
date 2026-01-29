@@ -1,0 +1,400 @@
+# Plan: Add Database Persistence for Votes
+
+## Problem Statement
+
+Currently, the Artist Vote app uses Supabase Realtime Broadcast (ephemeral pub/sub) for vote synchronization. This means:
+
+- Votes are only received by clients connected at the time of broadcast
+- Users joining the results screen (mainstage) after votes have been cast don't see those votes
+- If a client disconnects and reconnects, they lose all previously received votes
+
+## Solution Overview
+
+Store votes in a Supabase database table. When the mainstage connects, load existing votes from the database. Continue using Realtime broadcast for live updates to connected clients.
+
+---
+
+## Part 1: Supabase Dashboard Setup
+
+**User Action Required:** Run this SQL in the Supabase SQL Editor (Dashboard > SQL Editor)
+
+```sql
+-- Create the poll_votes table
+CREATE TABLE poll_votes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  poll_id TEXT NOT NULL,
+  voter_id TEXT NOT NULL,
+  selected_option_id TEXT NOT NULL,
+  timestamp BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  -- One vote per voter per poll (allows vote changes via UPSERT)
+  CONSTRAINT unique_vote_per_poll UNIQUE (poll_id, voter_id)
+);
+
+-- Indexes for efficient queries
+CREATE INDEX idx_poll_votes_poll_id ON poll_votes(poll_id);
+
+-- Enable Row Level Security
+ALTER TABLE poll_votes ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous INSERT (for voting)
+CREATE POLICY "Allow anonymous vote insert" ON poll_votes
+  FOR INSERT WITH CHECK (true);
+
+-- Allow public SELECT (for loading results)
+CREATE POLICY "Allow public vote read" ON poll_votes
+  FOR SELECT USING (true);
+
+-- Allow UPDATE (for vote changes - same voter can change their vote)
+CREATE POLICY "Allow vote update" ON poll_votes
+  FOR UPDATE USING (true) WITH CHECK (true);
+```
+
+### Table Schema Explanation
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `id` | UUID | Primary key (auto-generated) |
+| `poll_id` | TEXT | Identifies which poll session |
+| `voter_id` | TEXT | Anonymous voter identifier |
+| `selected_option_id` | TEXT | Which option was voted for |
+| `timestamp` | BIGINT | JavaScript `Date.now()` value |
+| `created_at` | TIMESTAMPTZ | Server timestamp for auditing |
+
+### Security Notes
+
+- INSERT and SELECT are public (required for anonymous voting)
+- UPDATE is allowed so voters can change their vote
+- DELETE is NOT allowed to prevent vote manipulation
+- The unique constraint on `(poll_id, voter_id)` enforces one vote per voter per poll
+
+---
+
+## Part 2: Code Changes
+
+### Step 1: Create Database Utility Module
+
+**New file:** `src/lib/voteDatabase.ts`
+
+```typescript
+import { supabase } from './supabase';
+import type { Vote } from '@/types/poll.types';
+
+/**
+ * Database row type for poll_votes table
+ */
+type VoteRow = {
+  id: string;
+  poll_id: string;
+  voter_id: string;
+  selected_option_id: string;
+  timestamp: number;
+  created_at: string;
+};
+
+/**
+ * Converts a database row to a Vote object
+ */
+function rowToVote(row: VoteRow): Vote {
+  return {
+    voterId: row.voter_id,
+    selectedOptionId: row.selected_option_id,
+    timestamp: row.timestamp,
+  };
+}
+
+/**
+ * Saves a vote to the database.
+ * Uses UPSERT to handle vote changes (same voter voting again replaces their vote).
+ *
+ * @param pollId - The poll identifier
+ * @param vote - The vote to save
+ * @throws Error if the database operation fails
+ */
+export async function saveVote(pollId: string, vote: Vote): Promise<void> {
+  const { error } = await supabase
+    .from('poll_votes')
+    .upsert(
+      {
+        poll_id: pollId,
+        voter_id: vote.voterId,
+        selected_option_id: vote.selectedOptionId,
+        timestamp: vote.timestamp,
+      },
+      {
+        onConflict: 'poll_id,voter_id',
+      }
+    );
+
+  if (error) {
+    console.error('Error saving vote to database:', error);
+    throw new Error(`Failed to save vote: ${error.message}`);
+  }
+}
+
+/**
+ * Loads all votes for a poll from the database.
+ *
+ * @param pollId - The poll identifier
+ * @returns Array of votes for the poll, ordered by timestamp
+ */
+export async function loadVotes(pollId: string): Promise<Vote[]> {
+  const { data, error } = await supabase
+    .from('poll_votes')
+    .select('*')
+    .eq('poll_id', pollId)
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    console.error('Error loading votes from database:', error);
+    throw new Error(`Failed to load votes: ${error.message}`);
+  }
+
+  return (data as VoteRow[]).map(rowToVote);
+}
+```
+
+---
+
+### Step 2: Modify useVoteChannel Hook
+
+**File:** `src/hooks/useVoteChannel.ts`
+
+**Changes needed:**
+
+1. Add import for `saveVote`:
+```typescript
+import { saveVote } from '@/lib/voteDatabase';
+```
+
+2. The hook needs access to `pollId` inside `sendVote`. Currently the hook signature is:
+```typescript
+export function useVoteChannel(
+  pollId: string | null,
+  onVoteReceived: (vote: Vote) => void,
+  onRevealResults?: () => void
+)
+```
+
+3. Modify the `sendVote` function to save to database before broadcasting:
+
+**Current implementation (around line 45-60):**
+```typescript
+const sendVote = useCallback(
+  async (vote: Vote): Promise<void> => {
+    // ... existing broadcast code
+  },
+  []
+);
+```
+
+**New implementation:**
+```typescript
+const sendVote = useCallback(
+  async (vote: Vote): Promise<void> => {
+    if (!channelRef.current || !pollId) {
+      throw new Error('Channel not connected');
+    }
+
+    // First, persist vote to database
+    await saveVote(pollId, vote);
+
+    // Then broadcast for real-time updates to connected clients
+    const message: PollMessage = {
+      type: 'VOTE_CAST',
+      payload: vote,
+      timestamp: Date.now(),
+    };
+
+    await channelRef.current.send({
+      type: 'broadcast',
+      event: 'poll',
+      payload: message,
+    });
+  },
+  [pollId]  // Add pollId to dependencies
+);
+```
+
+---
+
+### Step 3: Modify Mainstage to Load Existing Votes
+
+**File:** `src/app/mainstage/page.tsx`
+
+**Changes needed:**
+
+1. Add import for `loadVotes`:
+```typescript
+import { loadVotes } from '@/lib/voteDatabase';
+```
+
+2. Add state for loading:
+```typescript
+const [isLoadingVotes, setIsLoadingVotes] = useState(true);
+const [voteLoadError, setVoteLoadError] = useState<string | null>(null);
+```
+
+3. Modify the `setStartingState` function (or wherever poll state is initialized) to load existing votes:
+
+**Find the code that parses `startingState.additionalData` and add vote loading after:**
+
+```typescript
+async function setStartingState(mainStageClient: MeetMainStageClient) {
+  const startingState = await mainStageClient.getActivityStartingState();
+  if (startingState.additionalData) {
+    try {
+      const state = JSON.parse(startingState.additionalData) as PollState;
+      setPollState(state);
+      setOptions(state.options);
+
+      // NEW: Load existing votes from database
+      try {
+        const existingVotes = await loadVotes(state.pollId);
+        setVotes(existingVotes);
+        console.log(`Loaded ${existingVotes.length} existing votes`);
+      } catch (error) {
+        console.error('Error loading existing votes:', error);
+        setVoteLoadError('Error carregant vots existents');
+        // Continue with empty votes - real-time will still work
+        setVotes([]);
+      } finally {
+        setIsLoadingVotes(false);
+      }
+    } catch (error) {
+      console.error('Error parsing starting state:', error);
+      setIsLoadingVotes(false);
+    }
+  } else {
+    setIsLoadingVotes(false);
+  }
+}
+```
+
+4. Optionally show loading state in the UI:
+```typescript
+{isLoadingVotes && <p>Carregant vots...</p>}
+{voteLoadError && <p className="text-yellow-600">{voteLoadError}</p>}
+```
+
+---
+
+## Files Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/voteDatabase.ts` | **CREATE** | New database utility module with `saveVote` and `loadVotes` |
+| `src/hooks/useVoteChannel.ts` | **MODIFY** | Add database save before broadcast in `sendVote` |
+| `src/app/mainstage/page.tsx` | **MODIFY** | Load existing votes on mount |
+
+---
+
+## Data Flow After Implementation
+
+### Vote Submission Flow
+```
+1. User selects option and clicks "Votar"
+2. handleVoteSubmit() creates Vote object
+3. sendVote(vote) is called
+4. saveVote(pollId, vote) writes to poll_votes table (UPSERT)
+5. If save succeeds, broadcast vote via Realtime
+6. All connected clients receive real-time update
+7. Show confirmation to user
+```
+
+### Late Joiner Flow
+```
+1. User opens mainstage (possibly minutes after voting started)
+2. getActivityStartingState() retrieves poll configuration
+3. loadVotes(pollId) fetches ALL existing votes from database
+4. Display results immediately with all votes
+5. Subscribe to Realtime channel for new incoming votes
+6. Continue receiving real-time updates
+```
+
+---
+
+## Error Handling
+
+| Scenario | Handling |
+|----------|----------|
+| Database save fails | Log error, throw to caller, show "Error guardant el vot" |
+| Database load fails | Log warning, continue with empty votes (real-time still works) |
+| Duplicate vote attempt | UPSERT handles automatically - updates existing vote |
+| Supabase connection issues | Graceful degradation - broadcast still works |
+
+### Error Messages (Catalan)
+- Save error: "Error guardant el vot. Torna-ho a provar."
+- Load error: "Error carregant vots existents" (warning, non-blocking)
+
+---
+
+## Verification Steps
+
+1. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+2. **Test vote persistence:**
+   - Open sidepanel, configure poll, start voting
+   - Cast 2-3 votes from different browser windows
+   - Check Supabase Table Editor - votes should appear in `poll_votes` table
+
+3. **Test late joiner scenario:**
+   - With votes already cast, open mainstage in a NEW incognito window
+   - Verify: all existing votes are displayed immediately (not just 0)
+
+4. **Test real-time updates:**
+   - With multiple windows open, cast a new vote
+   - Verify: all windows update in real-time
+
+5. **Test vote change:**
+   - Vote for option A, then vote for option B
+   - Verify: only one vote exists in database (updated, not duplicated)
+
+---
+
+## Future Considerations
+
+- **Vote cleanup:** Old poll votes will accumulate. Consider adding a scheduled cleanup job or TTL policy for votes older than 24-48 hours
+- **Rate limiting:** The public INSERT policy could be abused. Consider adding rate limiting at the edge function level
+- **Reveal state persistence:** The "REVEAL_RESULTS" command is still ephemeral. Consider persisting poll status to database
+- **Tiebreaker support:** When implementing tiebreakers, the database already supports multiple rounds via different `poll_id` values
+
+---
+
+## Current Codebase Reference
+
+### Existing Vote Type (`src/types/poll.types.ts`)
+```typescript
+export type Vote = {
+  voterId: string;
+  selectedOptionId: string;
+  timestamp: number;
+};
+```
+
+### Existing Supabase Client (`src/lib/supabase.ts`)
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+```
+
+### Existing Vote Deduplication (in mainstage)
+```typescript
+const handleVoteReceived = useCallback((vote: Vote) => {
+  setVotes((prev) => {
+    // Replace vote if same voter (allow vote changes)
+    const filtered = prev.filter((v) => v.voterId !== vote.voterId);
+    return [...filtered, vote];
+  });
+}, []);
+```
+
+This deduplication logic ensures that real-time votes don't create duplicates when merged with database-loaded votes.

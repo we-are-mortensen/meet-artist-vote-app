@@ -4,7 +4,7 @@
       "id": "default",
       "name": "Mortensen",
       "description": "Tot l'equip de Mortensen",
-      "options": ["Adri", "Anita", "Ana", "Anto", "Edwin", "Ester", "Maria", "Marie", "Naomí", "Nika", "Pau"]
+      "options": ["Adri", "Anita", "Annna", "Anto", "Edwin", "Marie", "Naomí", "Nika", "Pau"]
     },
     {
       "id": "dev",
@@ -16,7 +16,7 @@
       "id": "disseny",
       "name": "Disseny",
       "description": "Equip de disseny",
-      "options": ["Anita", "Ana", "Ester", "Maria", "Naomí"]
+      "options": ["Anita", "Annna", "Naomí"]
     }
   ]
 }

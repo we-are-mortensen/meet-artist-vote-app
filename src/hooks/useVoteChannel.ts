@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { saveVote } from '@/lib/voteDatabase';
 import { Vote, PollMessage } from '@/types/poll.types';
 
 type VoteCallback = (vote: Vote) => void;
@@ -65,10 +66,14 @@ export function useVoteChannel(
 
   const sendVote = useCallback(
     async (vote: Vote): Promise<void> => {
-      if (!channelRef.current) {
+      if (!channelRef.current || !pollId) {
         throw new Error('Channel not connected');
       }
 
+      // Persist vote to database
+      await saveVote(pollId, vote);
+
+      // Broadcast for real-time updates to connected clients
       const message: PollMessage = {
         type: 'VOTE_CAST',
         payload: vote,
@@ -81,7 +86,7 @@ export function useVoteChannel(
         payload: message,
       });
     },
-    []
+    [pollId]
   );
 
   const sendRevealCommand = useCallback(async (): Promise<void> => {

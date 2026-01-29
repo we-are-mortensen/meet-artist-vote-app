@@ -5,6 +5,7 @@ import { meet, MeetMainStageClient } from "@googleworkspace/meet-addons/meet.add
 import { CLOUD_PROJECT_NUMBER } from "../../shared/constants";
 import type { PollOption, Vote, PollState, VoteResults as VoteResultsType } from "../../types/poll.types";
 import { calculateResults } from "../../utils/voteCalculations";
+import { loadVotes } from "../../lib/voteDatabase";
 import { useVoteChannel } from "../../hooks/useVoteChannel";
 import VoteResults from "../../components/VoteResults";
 
@@ -58,7 +59,16 @@ export default function Page() {
         const state = JSON.parse(startingState.additionalData) as PollState;
         setPollState(state);
         setOptions(state.options);
-        setVotes(state.votes);
+
+        // Load existing votes from database (handles late joiners)
+        try {
+          const existingVotes = await loadVotes(state.pollId);
+          setVotes(existingVotes);
+        } catch (error) {
+          console.error("Error loading existing votes:", error);
+          // Continue with initial state votes - real-time will still work
+          setVotes(state.votes);
+        }
       } catch (error) {
         console.error("Error parsing starting state:", error);
       }

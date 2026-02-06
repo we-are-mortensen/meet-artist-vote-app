@@ -120,7 +120,7 @@ export default function Page() {
   if (resultsRevealed && results) {
     return (
       <div className="min-h-screen bg-paper bg-confetti py-8 px-4">
-        <VoteResults results={results} votingInProgress={false} />
+        <VoteResults results={results} votingInProgress={false} correctOptionId={pollState.correctOptionId} />
       </div>
     );
   }

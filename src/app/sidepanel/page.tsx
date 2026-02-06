@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { meet, MeetSidePanelClient } from "@googleworkspace/meet-addons/meet.addons";
 import { ACTIVITY_SIDE_PANEL_URL, CLOUD_PROJECT_NUMBER, MAIN_STAGE_URL } from "../../shared/constants";
 import { generatePollId, parseCustomOptions, validateCustomOptions, stringsToPollOptions } from "../../utils/voteCalculations";
@@ -21,56 +21,31 @@ export default function Page() {
   const [selectedListId, setSelectedListId] = useState("default");
   const [customOptionsText, setCustomOptionsText] = useState("");
   const [validationError, setValidationError] = useState<string>("");
+  const [correctOptionId, setCorrectOptionId] = useState<string>("");
 
   const predefinedLists = (predefinedListsData as PredefinedListsData).lists;
 
   /**
-   * Gets the poll options based on current selection (for preview, no validation errors)
+   * Memoized preview options with stable IDs.
+   * IDs must be stable across renders so the correct answer dropdown works.
    */
-  function getPreviewOptions(): PollOption[] | null {
+  const previewOptions = useMemo<PollOption[] | null>(() => {
     if (optionsSource === "predefined") {
       const selectedList = predefinedLists.find((list) => list.id === selectedListId);
       if (!selectedList) return null;
       return stringsToPollOptions(selectedList.options);
     } else {
-      // Custom options
-      if (!customOptionsText.trim()) {
-        return null;
-      }
-
+      if (!customOptionsText.trim()) return null;
       const validation = validateCustomOptions(customOptionsText);
-      if (!validation.valid) {
-        return null;
-      }
-
+      if (!validation.valid) return null;
       return parseCustomOptions(customOptionsText);
     }
-  }
+  }, [optionsSource, selectedListId, customOptionsText, predefinedLists]);
 
-  /**
-   * Gets the poll options and validates (sets error state if invalid)
-   */
-  function getPollOptionsWithValidation(): PollOption[] | null {
-    if (optionsSource === "predefined") {
-      const selectedList = predefinedLists.find((list) => list.id === selectedListId);
-      if (!selectedList) return null;
-      return stringsToPollOptions(selectedList.options);
-    } else {
-      // Custom options
-      if (!customOptionsText.trim()) {
-        setValidationError("Si us plau, introdueix almenys 2 opcions");
-        return null;
-      }
-
-      const validation = validateCustomOptions(customOptionsText);
-      if (!validation.valid) {
-        setValidationError(validation.error || "Opcions no vàlides");
-        return null;
-      }
-
-      return parseCustomOptions(customOptionsText);
-    }
-  }
+  // Reset correct answer selection when options change
+  useEffect(() => {
+    setCorrectOptionId("");
+  }, [previewOptions]);
 
   /**
    * Starts the voting activity with selected options
@@ -83,10 +58,26 @@ export default function Page() {
     // Clear previous errors
     setValidationError("");
 
-    // Get poll options with validation
-    const pollOptions = getPollOptionsWithValidation();
-    if (!pollOptions) {
-      return; // Validation error already set
+    // Validate custom options
+    if (optionsSource === "custom") {
+      if (!customOptionsText.trim()) {
+        setValidationError("Si us plau, introdueix almenys 2 opcions");
+        return;
+      }
+      const validation = validateCustomOptions(customOptionsText);
+      if (!validation.valid) {
+        setValidationError(validation.error || "Opcions no vàlides");
+        return;
+      }
+    }
+
+    if (!previewOptions || previewOptions.length === 0) {
+      return;
+    }
+
+    if (!correctOptionId) {
+      setValidationError("Si us plau, selecciona qui és l'artista d'avui");
+      return;
     }
 
     setIsStarting(true);
@@ -94,12 +85,13 @@ export default function Page() {
     try {
       // Initialize poll state with options
       const pollState: PollState = {
-        options: pollOptions,
+        options: previewOptions,
         votes: [],
         status: "voting",
         pollId: generatePollId(),
         round: 1,
         optionsSource: optionsSource,
+        correctOptionId: correctOptionId,
       };
 
       await sidePanelClient.startActivity({
@@ -133,9 +125,6 @@ export default function Page() {
     }
     initializeSidePanelClient();
   }, []);
-
-  // Get current preview options
-  const previewOptions = getPreviewOptions();
 
   return (
     <div className="min-h-screen flex flex-col p-6 bg-paper">
@@ -263,6 +252,34 @@ export default function Page() {
               ))}
               {previewOptions.length > 10 && <li className="font-body text-sm text-text-secondary italic">... i {previewOptions.length - 10} més</li>}
             </ul>
+          </div>
+        )}
+
+        {/* Correct answer selection */}
+        {previewOptions && previewOptions.length > 0 && (
+          <div className="mb-6">
+            <label className="block font-heading text-lg font-bold text-text-primary mb-3">
+              Qui és l&apos;artista d&apos;avui?
+            </label>
+            <select
+              value={correctOptionId}
+              onChange={(e) => {
+                setCorrectOptionId(e.target.value);
+                setValidationError("");
+              }}
+              className="w-full px-3 py-2 border-3 border-crayon-purple/50 hand-drawn-subtle
+                bg-card text-text-primary font-body
+                focus:outline-none focus:border-crayon-purple focus:ring-2 focus:ring-crayon-purple/20"
+            >
+              <option value="" disabled>
+                Selecciona l&apos;artista...
+              </option>
+              {previewOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

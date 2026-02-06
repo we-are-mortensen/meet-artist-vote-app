@@ -40,6 +40,8 @@ export type PollState = {
   round: number;
   /** Source of the poll options */
   optionsSource: "predefined" | "custom";
+  /** ID of the correct answer option, selected by the host during setup */
+  correctOptionId: string;
 };
 
 /**

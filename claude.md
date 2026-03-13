@@ -171,9 +171,9 @@ npm start
 
 ### Poll Configuration
 - **Predefined Lists**: 3 ready-to-use lists stored in [src/data/predefinedOptions.json](src/data/predefinedOptions.json)
-  - "Mortensen": Full team (11 members) - Adri, Anita, Ana, Anto, Edwin, Ester, Maria, Marie, Naomí, Nika, Pau
-  - "Dev": Development team (5 members) - Adri, Edwin, Marie, Nika, Pau
-  - "Disseny": Design team (5 members) - Anita, Ana, Ester, Maria, Naomí
+  - "Mortensen": Full team
+  - "Dev": Development team
+  - "Disseny": Design team
 - **Custom Lists**: Initiator can create custom options via textarea
   - One option per line
   - Validation: minimum 2, maximum 50 options

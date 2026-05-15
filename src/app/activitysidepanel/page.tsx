@@ -2,26 +2,23 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { meet, MeetSidePanelClient } from "@googleworkspace/meet-addons/meet.addons";
-import { CLOUD_PROJECT_NUMBER } from "../../shared/constants";
-import type { Vote, PollState } from "../../types/poll.types";
-import { generateVoterId } from "../../utils/voteCalculations";
-import { useVoteChannel } from "../../hooks/useVoteChannel";
-import PollQuestion from "../../components/PollQuestion";
-import OptionList from "../../components/OptionList";
-import VoteButton from "../../components/VoteButton";
-import VoteConfirmation from "../../components/VoteConfirmation";
+import { CLOUD_PROJECT_NUMBER } from "@/shared/constants";
+import type { Participant, PollState, Vote, StoredIdentity } from "@/types/poll.types";
+import { useVoteChannel } from "@/hooks/useVoteChannel";
+import { getIdentity, setIdentity as storeIdentity, clearIdentity } from "@/lib/identity";
+import { scorePoll } from "@/lib/scoring";
+import { revealPoll } from "@/lib/polls";
+import IdentityHeader from "@/components/IdentityHeader";
+import IdentityPicker from "@/components/IdentityPicker";
+import ArtistWaitingView from "@/components/ArtistWaitingView";
+import PollQuestion from "@/components/PollQuestion";
+import OptionList from "@/components/OptionList";
+import VoteButton from "@/components/VoteButton";
 
-/**
- * Activity side panel for voting
- * Participants vote directly on predefined poll options
- * @see {@link https://developers.google.com/meet/add-ons/guides/overview#side-panel}
- */
 export default function Page() {
-  const [sidePanelClient, setSidePanelClient] = useState<MeetSidePanelClient>();
+  const [, setSidePanelClient] = useState<MeetSidePanelClient>();
   const [pollState, setPollState] = useState<PollState | null>(null);
-
-  // Anonymous voter ID (generated once on load)
-  const [voterId] = useState(() => generateVoterId());
+  const [identity, setIdentityState] = useState<StoredIdentity | null>(null);
 
   // Voting state
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -32,205 +29,223 @@ export default function Page() {
   // Reveal state
   const [hasRevealed, setHasRevealed] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
+  const [isShowingLeaderboard, setIsShowingLeaderboard] = useState(false);
+  const [hasShownLeaderboard, setHasShownLeaderboard] = useState(false);
 
-  // Host detection - only the activity initiator can reveal results
   const [isHost, setIsHost] = useState(false);
 
-  // Handle incoming votes from other participants (updates local state)
-  const handleVoteReceived = useCallback((vote: Vote) => {
-    setPollState((prev) => {
-      if (!prev) return prev;
-      const filteredVotes = prev.votes.filter((v) => v.voterId !== vote.voterId);
-      return {
-        ...prev,
-        votes: [...filteredVotes, vote],
-      };
-    });
+  const handleVoteReceived = useCallback((_vote: Vote) => {
+    // Activity panel doesn't need to display vote counts to non-host participants.
+    // Kept as a no-op so the channel is fully wired (mainstage cares about this).
   }, []);
 
-  // Handle reveal results command received from others
   const handleRevealResults = useCallback(() => {
     setHasRevealed(true);
   }, []);
 
-  // Supabase Realtime channel for votes and reveal command
-  const { sendVote, sendRevealCommand } = useVoteChannel(pollState?.pollId ?? null, handleVoteReceived, handleRevealResults);
+  const handleShowLeaderboard = useCallback(() => {
+    setHasShownLeaderboard(true);
+  }, []);
 
-  /**
-   * Handles vote submission via Supabase broadcast
-   */
-  async function handleVoteSubmit() {
-    if (!selectedOptionId || !pollState) {
-      return;
-    }
-
-    if (!selectedOptionId) {
-      alert("Si us plau, selecciona una opció");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const vote: Vote = {
-        voterId: voterId,
-        selectedOptionId,
-        timestamp: Date.now(),
-      };
-
-      // Find the name of the option that was voted for
-      const votedFor = pollState.options.find((option) => option.id === selectedOptionId);
-      setVotedForName(votedFor?.name || "Desconegut");
-
-      // Send vote via Supabase Realtime broadcast
-      await sendVote(vote);
-
-      setHasVoted(true);
-    } catch (error) {
-      console.error("Error submitting vote:", error);
-      alert("Error enviant el vot. Torna-ho a provar.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  /**
-   * Handles revealing results via Supabase broadcast
-   */
-  async function handleRevealClick() {
-    if (hasRevealed || isRevealing) return;
-
-    setIsRevealing(true);
-    try {
-      await sendRevealCommand();
-      setHasRevealed(true);
-    } catch (error) {
-      console.error("Error revealing results:", error);
-      alert("Error revelant els resultats. Torna-ho a provar.");
-    } finally {
-      setIsRevealing(false);
-    }
-  }
+  const { sendVote, sendRevealCommand, sendShowLeaderboard } = useVoteChannel(
+    pollState?.pollId ?? null,
+    handleVoteReceived,
+    handleRevealResults,
+    handleShowLeaderboard
+  );
 
   useEffect(() => {
-    /**
-     * Initializes the Add-on Side Panel Client and gets starting state
-     */
-    async function initializeSidePanelClient() {
+    async function initialize() {
       const session = await meet.addon.createAddonSession({
         cloudProjectNumber: CLOUD_PROJECT_NUMBER,
       });
       const client = await session.createSidePanelClient();
       setSidePanelClient(client);
 
-      // Get the starting poll state
       const startingState = await client.getActivityStartingState();
       if (startingState.additionalData) {
         try {
           const state = JSON.parse(startingState.additionalData) as PollState;
           setPollState(state);
-
-          // Check if this browser tab is the host for THIS specific poll
-          // (comparing pollId ensures a new activity in the same session won't inherit host status)
-          const hostOfPollId = sessionStorage.getItem("hostOfPollId");
-          setIsHost(hostOfPollId === state.pollId);
-        } catch (error) {
-          console.error("Error parsing poll state:", error);
+          setIsHost(sessionStorage.getItem("hostOfPollId") === state.pollId);
+        } catch (err) {
+          console.error("Error parsing poll state:", err);
         }
       }
+
+      setIdentityState(getIdentity());
     }
-    initializeSidePanelClient();
+    initialize();
   }, []);
+
+  function onIdentityPicked(p: Participant) {
+    const id: StoredIdentity = { id: p.id, name: p.name };
+    storeIdentity(id);
+    setIdentityState(id);
+  }
+
+  function onChangeIdentity() {
+    clearIdentity();
+    setIdentityState(null);
+    setSelectedOptionId("");
+    setHasVoted(false);
+  }
+
+  async function handleVoteSubmit() {
+    if (!selectedOptionId || !pollState || !identity) return;
+    setIsSubmitting(true);
+    try {
+      const vote: Vote = {
+        voterParticipantId: identity.id,
+        votedForId: selectedOptionId,
+        timestamp: Date.now(),
+      };
+      const target = pollState.participants.find((p) => p.id === selectedOptionId);
+      setVotedForName(target?.name ?? "Desconegut");
+      await sendVote(vote);
+      setHasVoted(true);
+    } catch (err) {
+      console.error("Error submitting vote:", err);
+      alert("Error enviant el vot. Torna-ho a provar.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRevealClick() {
+    if (hasRevealed || isRevealing || !pollState) return;
+    setIsRevealing(true);
+    try {
+      await revealPoll(pollState.pollId);
+      await sendRevealCommand();
+      setHasRevealed(true);
+    } catch (err) {
+      console.error("Error revealing results:", err);
+      alert("Error revelant els resultats. Torna-ho a provar.");
+    } finally {
+      setIsRevealing(false);
+    }
+  }
+
+  async function handleShowLeaderboardClick() {
+    if (!pollState || isShowingLeaderboard || hasShownLeaderboard) return;
+    setIsShowingLeaderboard(true);
+    try {
+      await scorePoll(pollState.pollId);
+      await sendShowLeaderboard();
+      setHasShownLeaderboard(true);
+    } catch (err) {
+      console.error("Error showing leaderboard:", err);
+      alert("Error mostrant la puntuació. Torna-ho a provar.");
+    } finally {
+      setIsShowingLeaderboard(false);
+    }
+  }
 
   if (!pollState) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-paper">
-        <div className="text-center">
-          <div className="mb-4 flex justify-center gap-2">
-            <span className="text-4xl animate-bounce" style={{ animationDelay: "0ms" }}>
-              🎨
-            </span>
-            <span className="text-4xl animate-bounce" style={{ animationDelay: "100ms" }}>
-              ✨
-            </span>
-            <span className="text-4xl animate-bounce" style={{ animationDelay: "200ms" }}>
-              🖌️
-            </span>
-          </div>
-          <p className="font-heading text-xl text-text-secondary font-bold">Carregant...</p>
-        </div>
+        <p className="font-heading text-xl text-text-secondary font-bold">Carregant...</p>
       </div>
     );
   }
 
+  // Identity not yet chosen → show picker
+  if (!identity) {
+    return (
+      <div className="min-h-screen flex flex-col p-6 bg-paper">
+        <IdentityPicker participants={pollState.participants} onPick={onIdentityPicked} />
+      </div>
+    );
+  }
+
+  const isArtist = identity.id === pollState.correctParticipantId;
+  const headerInitialPoints =
+    pollState.participants.find((p) => p.id === identity.id)?.points ?? 0;
+
   return (
     <div className="min-h-screen flex flex-col p-6 bg-paper">
       <div className="max-w-md mx-auto w-full">
-        <PollQuestion round={pollState.round} />
+        <IdentityHeader
+          participantId={identity.id}
+          name={identity.name}
+          initialPoints={headerInitialPoints}
+          onChange={onChangeIdentity}
+        />
 
-        {hasVoted ? (
-          /* Vote confirmation with reveal button */
-          <div>
-            <VoteConfirmation votedForName={votedForName} />
+        {isArtist ? (
+          <ArtistWaitingView name={identity.name} hasRevealed={hasRevealed} />
+        ) : (
+          <>
+            <PollQuestion />
 
-            {/* Reveal Results Button - Only visible to host */}
-            {!hasRevealed && isHost && (
-              <button
-                onClick={handleRevealClick}
-                disabled={isRevealing}
-                className={`
-                  w-full mt-6 py-4 px-6 hand-drawn border-3
-                  font-heading text-xl font-bold text-white
-                  transition-all duration-200
-                  ${
-                    isRevealing
-                      ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
-                      : "bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
-                  }
-                  flex items-center justify-center gap-3
-                `}
-              >
-                {isRevealing ? (
-                  <span className="flex items-center justify-center gap-3">
-                    <span className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-white/30 border-t-white"></span>
-                    Revelant...
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-2xl">🏅</span>
-                    Revelar resultats
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Results revealed confirmation */}
-            {hasRevealed && (
-              <div className="mt-6 p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
-                <div className="mb-2 flex justify-center gap-2">
-                  <span className="text-2xl">🎉</span>
-                  <span className="text-2xl">📺</span>
-                  <span className="text-2xl">🎉</span>
+            {hasVoted ? (
+              <div>
+                <div className="p-5 bg-crayon-green/10 border-3 border-crayon-green hand-drawn text-center mb-6">
+                  <div className="flex justify-center gap-2 mb-2">
+                    <span className="text-3xl">✅</span>
+                  </div>
+                  <p className="font-heading text-lg text-crayon-green font-bold">
+                    Has votat per {votedForName}
+                  </p>
                 </div>
-                <p className="font-heading text-lg text-crayon-purple font-bold">Els resultats s&apos;estan mostrant a la pantalla principal</p>
+
+                {isHost && !hasRevealed && (
+                  <button
+                    type="button"
+                    onClick={handleRevealClick}
+                    disabled={isRevealing}
+                    className={`w-full py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
+                      isRevealing
+                        ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                        : "bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
+                    }`}
+                  >
+                    {isRevealing ? "Revelant..." : (<><span className="text-2xl">🏅</span>Revelar resultats</>)}
+                  </button>
+                )}
+
+                {isHost && hasRevealed && !hasShownLeaderboard && (
+                  <button
+                    type="button"
+                    onClick={handleShowLeaderboardClick}
+                    disabled={isShowingLeaderboard}
+                    className={`w-full mt-4 py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
+                      isShowingLeaderboard
+                        ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                        : "bg-crayon-orange border-crayon-orange shadow-playful-orange hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
+                    }`}
+                  >
+                    {isShowingLeaderboard ? "Calculant..." : (<><span className="text-2xl">🏆</span>Mostrar puntuació</>)}
+                  </button>
+                )}
+
+                {hasRevealed && (
+                  <div className="mt-6 p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
+                    <p className="font-heading text-lg text-crayon-purple font-bold">
+                      Els resultats es mostren a la pantalla principal
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="mb-6">
+                  <OptionList
+                    options={pollState.participants.map((p) => ({ id: p.id, name: p.name }))}
+                    selectedOptionId={selectedOptionId}
+                    onSelect={setSelectedOptionId}
+                    disabled={isSubmitting || hasRevealed}
+                  />
+                </div>
+                <VoteButton
+                  onClick={handleVoteSubmit}
+                  disabled={!selectedOptionId || isSubmitting || hasRevealed}
+                  loading={isSubmitting}
+                />
               </div>
             )}
-          </div>
-        ) : (
-          /* Voting interface */
-          <div>
-            <div className="mb-6">
-              <OptionList
-                options={pollState.options}
-                selectedOptionId={selectedOptionId}
-                onSelect={setSelectedOptionId}
-                disabled={isSubmitting}
-                loading={pollState.options.length === 0}
-              />
-            </div>
-
-            <VoteButton onClick={handleVoteSubmit} disabled={!selectedOptionId || isSubmitting} loading={isSubmitting} />
-          </div>
+          </>
         )}
       </div>
     </div>

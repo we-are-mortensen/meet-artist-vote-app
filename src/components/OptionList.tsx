@@ -2,11 +2,11 @@
  * Displays a list of poll options as selectable choices for voting
  */
 
-import type { PollOption } from '../types/poll.types';
+type Option = { id: string; name: string };
 
 type OptionListProps = {
   /** Array of poll options to display */
-  options: PollOption[];
+  options: Option[];
   /** ID of the currently selected option */
   selectedOptionId: string;
   /** Callback when an option is selected */

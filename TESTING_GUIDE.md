@@ -1,421 +1,212 @@
-# Testing Guide: Artist Vote Add-on
+# Testing Guide — Artist Vote
 
-This guide provides instructions for testing the Artist Vote add-on locally and in Google Meet.
+How to verify the gamified flow works end-to-end. There is no automated test suite for this project — verification is `npx tsc --noEmit` + `npm run build` + manual dev-server smoke testing.
 
 ---
 
-## Local Testing
+## Prerequisites
 
-### Prerequisites
-- Node.js installed
-- Repository cloned
-- Dependencies installed (`npm install`)
+- Node.js, dependencies installed (`npm install`).
+- Supabase project with the migration applied and `participants` seeded (see `README.md` → "Database setup").
+- For Google Meet testing: the add-on registered, HTTPS deployment, multiple Google accounts.
 
-### Start Development Server
+---
+
+## Local smoke test
+
+Most of the flow can be exercised against a local dev server without Google Meet, by opening the routes directly in two browser windows.
+
+### Start the server
 
 ```bash
-# Set environment variable for local development
-export NEXT_PUBLIC_DEBUG=1
-
-# Start the server
-npm run dev
+NEXT_PUBLIC_DEBUG=1 npm run dev
 ```
 
-The server will start at: **http://localhost:3000**
+Server listens at `https://localhost:3000`. Accept the self-signed cert.
 
-### Test Each Page
+### Confirm DB state
 
-#### 1. **Screenshare Landing Page**
-- Navigate to: http://localhost:3000
-- **Expected**: Colorful landing page with playful theme
-- **Check**:
-  - Title: "Votació de l'Artista"
-  - Confetti/playful background
-  - Instructions in Catalan
-  - Hand-drawn border effects
-  - Responsive design
+In Supabase Studio:
 
-#### 2. **Setup Side Panel**
-- Navigate to: http://localhost:3000/sidepanel
-- **Expected**: Setup interface with playful styling
-- **Check**:
-  - Radio buttons for predefined vs custom options
-  - Dropdown with 3 lists: Mortensen, Dev, Disseny
-  - Textarea for custom options
-  - Preview section showing selected options
-  - "Començar votació" button
-  - Hand-drawn card borders
-  - Crayon color accents
+- `participants` has rows. Note the UUIDs of two of them (e.g. "Pau" and "Adri").
+- `polls`, `votes`, `score_events` exist as tables and are empty.
+- `participants` is in the `supabase_realtime` publication:
+  ```sql
+  select tablename from pg_publication_tables
+   where pubname = 'supabase_realtime' and tablename = 'participants';
+  ```
 
-**Note**: In local testing without Meet SDK, the button will remain disabled. This is expected behavior.
+### Drive a round
 
-#### 3. **Activity Side Panel**
-- Navigate to: http://localhost:3000/activitysidepanel
-- **Expected**: Voting interface with playful theme
-- **Check**:
-  - Poll question displays with fun styling
-  - Options list with colorful cycling colors
-  - Vote button with playful shadow
-  - All text in Catalan
+In **window A** (host):
+1. Open `https://localhost:3000/sidepanel`.
+2. Expect the dropdown populated from `participants`. Pick someone who is **not** you (e.g. "Pau"). Click **Començar votació**.
+3. Redirects to `/activitysidepanel`. The identity picker should appear.
+4. Pick yourself (e.g. "Adri"). The vote UI appears with all participants listed.
+5. In Supabase Studio, confirm a row exists in `polls` with `status='voting'` and the right `correct_participant_id`.
 
-**Note**: Without Meet SDK context, this will show a loading state. This is expected.
+In **window B** (voter):
+1. Open `https://localhost:3000/activitysidepanel`.
+2. Identity picker. Pick a different participant (e.g. "Edwin").
+3. Vote for "Pau" (the correct answer).
+4. Confirm a row appears in `votes` with `voter_participant_id` = Edwin and `voted_for_id` = Pau.
 
-#### 4. **Main Stage**
-- Navigate to: http://localhost:3000/mainstage
-- **Expected**: Results display with playful styling
-- **Check**:
-  - Confetti background effect
-  - Hand-drawn vote counter box
-  - Loading state appears
-  - Layout is responsive
-  - Dark mode works
+In **window A** (host, post-vote):
+1. Vote for someone. Confirmation appears.
+2. Click **Revelar resultats**.
+   - Both windows lock voting.
+   - `polls.status` flips to `'revealed'`.
+   - If you open `/mainstage` in a third window, it now shows the `ResultsView` with the artist hero card and the correct-guesser highlight.
+3. Click **Mostrar puntuació**.
+   - `score_poll` runs.
+   - `polls.status` → `'scored'`.
+   - `score_events` gains the appropriate rows.
+   - `participants.points` for correct guessers (e.g. Edwin if they guessed Pau) goes up.
+   - Main stage transitions to the leaderboard with the `+N` badge animation.
+   - Every connected client's `IdentityHeader` updates its points number live via Postgres Changes.
 
-**Note**: Without Meet SDK context, this will show a loading state. This is expected.
+### Identity persistence
+
+Reload window B without clearing storage. Expect: no identity picker, header shows the previously chosen name + current points.
+
+Click **Canviar** in the header. Expect: identity cleared, picker reappears.
 
 ---
 
-## Google Meet Testing
+## Scoring rule verification
 
-### Prerequisites
+Run these in the Supabase SQL editor to confirm `score_poll` behaves as designed. Each block sets up a synthetic round, scores it, asserts the result, and cleans up.
 
-1. **Google Cloud Project**: Must have Cloud Project Number: `315905898182` configured
-2. **Meet Add-on**: Must be registered in Google Workspace Marketplace
-3. **HTTPS**: Must deploy to HTTPS URL (localhost won't work in Meet)
-4. **Multiple Accounts**: Need at least 2-3 Google accounts for full testing
+### Case: nobody guesses → artist +3
 
-### Deployment Options
+```sql
+do $$
+declare a uuid; b uuid; c uuid;
+begin
+  select id into a from public.participants where name = 'Pau';
+  select id into b from public.participants where name = 'Adri';
+  select id into c from public.participants where name = 'Edwin';
 
-#### Option 1: GitHub Pages (Recommended)
-```bash
-# Build for production
-npm run build
+  insert into public.polls (id, correct_participant_id, status)
+    values ('poll_test_nobody', a, 'revealed');
+  insert into public.votes (poll_id, voter_participant_id, voted_for_id, timestamp) values
+    ('poll_test_nobody', b, c, 0),
+    ('poll_test_nobody', c, b, 0);
+end $$;
 
-# Deploy to GitHub Pages
-# (Follow GitHub Pages deployment process)
-```
-Production URL: https://we-are-mortensen.github.io/meet-artist-vote-app
+select public.score_poll('poll_test_nobody');
 
-#### Option 2: Local HTTPS (for testing)
-```bash
-# Install mkcert for local HTTPS
-brew install mkcert
-mkcert -install
-
-# Create certificates
-mkcert localhost
-
-# Start with HTTPS
-# (Configure Next.js for HTTPS or use ngrok)
+-- Expected: Pau gained 3, Adri/Edwin unchanged.
+select name, points from public.participants where name in ('Pau','Adri','Edwin') order by name;
 ```
 
-### Testing Flow
+### Case: everyone guesses → each non-artist +1, artist +0
 
-#### Step 1: Start a Google Meet Call
-1. Create a new Google Meet call
-2. Join with your primary account
-3. Have at least one other participant join (or join with a second device/account)
+```sql
+do $$
+declare a uuid; b uuid; c uuid;
+begin
+  select id into a from public.participants where name = 'Pau';
+  select id into b from public.participants where name = 'Adri';
+  select id into c from public.participants where name = 'Edwin';
 
-#### Step 2: Share the Add-on
-1. In the Meet call, start screen sharing
-2. Select the browser tab with: https://your-deployment-url.com
-3. **Expected**: Google Meet prompts to install/open the add-on
-4. Click to open the add-on
+  insert into public.polls (id, correct_participant_id, status)
+    values ('poll_test_all', a, 'revealed');
+  insert into public.votes (poll_id, voter_participant_id, voted_for_id, timestamp) values
+    ('poll_test_all', b, a, 0),
+    ('poll_test_all', c, a, 0);
+end $$;
 
-#### Step 3: Setup (Initiator Only)
-1. The setup side panel opens for you (the initiator)
-2. **Expected**:
-   - See "Votació de l'Artista" title with playful styling
-   - See option source selection (predefined or custom)
-   - See dropdown for predefined lists: Mortensen (11 names), Dev (5 names), Disseny (5 names)
-   - See preview of selected options with colorful styling
-   - See "Començar votació" button
-3. Choose poll options:
-   - **Predefined list**: Select from dropdown
-   - **Custom list**: Enter option names in textarea (one per line, minimum 2, maximum 50)
-4. Click "Començar votació"
-5. **Expected**:
-   - Main stage appears for all participants
-   - You're redirected to the activity side panel
+select public.score_poll('poll_test_all');
 
-#### Step 4: Vote
-Each participant (including initiator):
-1. Opens the add-on side panel
-2. **Expected**: Voting interface with list of poll options (no registration needed)
-3. Select one option (radio button with colorful styling)
-4. Click "Enviar vot"
-5. **Expected**:
-   - Success message: "Vot enviat correctament!"
-   - Shows which option you voted for
-   - "Esperant la resta de vots..." message
-
-**Host Only**: The initiator sees a "Revelar resultats" button
-
-**Test**: Check main stage - should show "Esperant vots..." and update in real-time as votes come in
-
-#### Step 5: View Results (Main Stage)
-As votes come in:
-1. **Expected**: Main stage updates in real-time
-2. **Check**:
-   - Vote counts update with playful number styling
-   - Percentage bars animate with crayon colors
-   - Progress bars show correctly
-   - Vote totals are accurate
-
-After all votes:
-1. **Expected**:
-   - Winner announced with crown emoji and confetti styling
-   - Winner has yellow highlight with hand-drawn border
-   - Or tie message if multiple participants tied
-
----
-
-## Test Scenarios
-
-### Scenario 1: Basic Flow with Mortensen List
-1. Initiator joins Meet and starts add-on
-2. Initiator selects predefined list "Mortensen" (11 names)
-3. Initiator clicks "Començar votació"
-4. Multiple participants join and vote
-5. Each votes for their favorite option
-**Expected**: Main stage shows vote counts for each option, winner announced
-
-### Scenario 2: Dev Team List
-1. Initiator selects "Dev" list (5 names: Adri, Edwin, Marie, Nika, Pau)
-2. Start voting
-3. 3 participants vote
-**Expected**: Only 5 options shown, votes calculated correctly
-
-### Scenario 3: Disseny Team List
-1. Initiator selects "Disseny" list (5 names: Anita, Ana, Ester, Maria, Naomí)
-2. Start voting
-**Expected**: Only 5 design team options shown
-
-### Scenario 4: Custom List
-1. Initiator creates custom list with names:
-   ```
-   Opció A
-   Opció B
-   Opció C
-   ```
-2. Initiator clicks "Començar votació"
-3. Participants vote for options
-**Expected**: Main stage shows the 3 custom options with vote counts
-
-### Scenario 5: Clear Winner
-1. Initiator sets up poll with 5 options
-2. 5 participants vote
-3. 3 vote for "Adri"
-4. 1 votes for "Edwin"
-5. 1 votes for "Marie"
-**Expected**: Adri wins with 60%, Edwin 20%, Marie 20%
-
-### Scenario 6: Three-Way Tie
-1. Poll with 3 options
-2. 3 participants vote
-3. Each option gets 1 vote
-**Expected**: Tie message with all three options highlighted
-
-### Scenario 7: No Votes
-1. Initiator starts poll
-2. Nobody votes yet
-**Expected**: Main stage shows "Esperant vots..." with 0 votes
-
-### Scenario 8: Validation Testing
-1. Try custom list with only 1 option
-**Expected**: Error "Cal introduir almenys 2 opcions"
-2. Try custom list with 51 options
-**Expected**: Error "Màxim 50 opcions permeses"
-3. Try custom list with duplicate names
-**Expected**: Error "Hi ha opcions duplicades"
-
----
-
-## Common Issues & Solutions
-
-### Issue: Button stays disabled in local testing
-**Solution**: This is expected. Meet SDK requires actual Meet context. Test in Google Meet instead.
-
-### Issue: "Side Panel is not yet initialized" error
-**Solution**: Wait a moment for the SDK to initialize, or refresh the page.
-
-### Issue: Main stage shows loading forever
-**Solution**:
-- Check browser console for errors
-- Ensure starting state was passed correctly
-- Verify Meet SDK is loaded
-
-### Issue: Votes not appearing on main stage
-**Solution**:
-- Check browser console for Supabase connection errors
-- Verify Supabase environment variables are set
-- Check network tab for realtime websocket connections
-
-### Issue: Dark mode looks broken
-**Solution**: Ensure Tailwind dark mode classes are applied and system/browser dark mode is enabled.
-
-### Issue: Host button not showing
-**Solution**:
-- Ensure you are the one who started the activity from the setup side panel
-- Check sessionStorage for 'hostOfPollId' value
-- The pollId must match the current poll's ID
-
----
-
-## Visual Testing Checklist
-
-**Landing Page**:
-- [ ] Loads without errors
-- [ ] Title in Catalan with playful font
-- [ ] Confetti/colorful background
-- [ ] Hand-drawn border effects
-- [ ] Responsive on mobile/tablet
-- [ ] Dark mode works
-
-**Setup Side Panel**:
-- [ ] Clean playful layout
-- [ ] Radio buttons with crayon colors
-- [ ] Dropdown styled correctly
-- [ ] Textarea with hand-drawn border
-- [ ] Preview section shows options
-- [ ] Button with playful shadow
-- [ ] Loading states work
-
-**Activity Side Panel**:
-- [ ] Poll question with playful styling
-- [ ] Options list with cycling colors
-- [ ] Radio buttons work
-- [ ] Vote button disabled until selection
-- [ ] Confirmation message after voting
-- [ ] Host sees reveal button
-- [ ] All text in Catalan
-
-**Main Stage**:
-- [ ] Confetti background
-- [ ] Hand-drawn vote counter
-- [ ] Results display with colorful bars
-- [ ] Bars animate smoothly
-- [ ] Winner highlighted with crown
-- [ ] Tie detected and displayed
-- [ ] Responsive layout
-- [ ] Real-time updates work
-
-## Functional Testing Checklist
-
-**Poll Setup**:
-- [ ] Can select predefined list (Mortensen, Dev, Disseny)
-- [ ] Can create custom list
-- [ ] Preview shows correct options
-- [ ] Validation prevents < 2 options
-- [ ] Validation prevents > 50 options
-- [ ] Validation detects duplicates
-- [ ] Both modes work correctly
-
-**Voting**:
-- [ ] Can select any option
-- [ ] Can submit vote
-- [ ] Vote appears immediately on confirmation
-- [ ] No registration required
-- [ ] Confirmation appears after voting
-- [ ] Anonymous voting works
-
-**Results**:
-- [ ] Vote counts accurate
-- [ ] Percentages calculate correctly
-- [ ] Bars show proportionally with colors
-- [ ] Winner identified correctly
-- [ ] Tie detected correctly
-- [ ] Real-time updates happen
-
-**Host Features**:
-- [ ] Only host sees reveal button
-- [ ] Host can reveal results
-- [ ] Non-hosts cannot reveal
-
-**Edge Cases**:
-- [ ] 2 options (minimum) works
-- [ ] 50 options (maximum) works
-- [ ] Long option names display correctly
-- [ ] All vote for same option
-- [ ] Nobody votes (0 votes displayed)
-- [ ] Special characters in custom options
-
----
-
-## Device Testing
-
-Test on multiple devices:
-- [ ] Desktop Chrome
-- [ ] Desktop Firefox
-- [ ] Desktop Safari
-- [ ] Mobile Safari (iOS)
-- [ ] Mobile Chrome (Android)
-- [ ] Tablet
-
----
-
-## Debugging Tips
-
-### Enable Console Logging
-Check browser console for:
-- Initialization messages
-- Supabase connection status
-- Error messages
-- State updates
-
-### Network Tab
-- Check for Supabase WebSocket connections
-- Verify realtime channel subscription
-- Look for failed requests
-
-### React DevTools
-- Inspect component state
-- Check prop values
-- Verify re-renders
-
-### Common Console Errors to Watch For
+-- Expected: Adri +1, Edwin +1, Pau unchanged.
 ```
-"Side Panel is not yet initialized!"
-→ Wait for initialization or check Meet context
 
-"Error parsing poll state"
-→ Check JSON format in additionalData
+### Case: mixed → artist gets (total − correct), correct guessers each +3
 
-"Supabase connection failed"
-→ Check environment variables and network
+```sql
+do $$
+declare a uuid; b uuid; c uuid; d uuid;
+begin
+  select id into a from public.participants where name = 'Pau';
+  select id into b from public.participants where name = 'Adri';
+  select id into c from public.participants where name = 'Edwin';
+  select id into d from public.participants where name = 'Nika';
+
+  insert into public.polls (id, correct_participant_id, status)
+    values ('poll_test_mixed', a, 'revealed');
+  -- 1 correct, 2 wrong
+  insert into public.votes (poll_id, voter_participant_id, voted_for_id, timestamp) values
+    ('poll_test_mixed', b, a, 0),  -- correct
+    ('poll_test_mixed', c, d, 0),  -- wrong
+    ('poll_test_mixed', d, c, 0);  -- wrong
+end $$;
+
+select public.score_poll('poll_test_mixed');
+
+-- Expected: Pau +2 (total 3 − correct 1), Adri +3 (correct), Edwin/Nika unchanged.
+```
+
+### Idempotency
+
+Run `select public.score_poll('poll_test_mixed');` a second time. Points must not change — the function bails out at the `FOR UPDATE` guard.
+
+### Cleanup
+
+```sql
+delete from public.score_events where poll_id like 'poll_test_%';
+delete from public.votes        where poll_id like 'poll_test_%';
+delete from public.polls        where id     like 'poll_test_%';
+update public.participants set points = 0;
 ```
 
 ---
 
-## Test Sign-Off
+## Google Meet integration test
 
-Once all tests pass:
-- [ ] All pages load correctly with playful theme
-- [ ] All components display properly
-- [ ] Voting works without registration
-- [ ] Results calculate correctly
-- [ ] Real-time updates work via Supabase
-- [ ] All text in Catalan
-- [ ] Playful styling consistent throughout
-- [ ] Responsive design works
-- [ ] Dark mode works
-- [ ] No console errors
-- [ ] Works in actual Google Meet call
-- [ ] Host detection works correctly
+Local tests cover everything except the actual Meet SDK wrapping. Once the local flow works:
+
+1. Build and deploy to your HTTPS host (GitHub Pages or similar).
+2. Start a Meet call with multiple accounts.
+3. Have the host share the deployed URL via screenshare. Meet should prompt to open the add-on.
+4. Repeat the flow from "Drive a round" above using the Meet-embedded add-on instead of direct URLs.
+
+The host must not pick themselves as the artist — the artist screen has no controls.
 
 ---
 
-## Next Steps After Testing
+## Things to verify by eye
 
-1. **Fix any bugs found**
-2. **Test with larger groups** (10+ participants)
-3. **Performance testing** with many votes
-4. **Implement tiebreaker** (if needed)
-5. **Deploy to production** GitHub Pages
-6. **User acceptance testing** with real users
-7. **Gather feedback** and iterate
+**Visual:**
+- IdentityHeader shows correct name, live points, "Canviar" link.
+- Results view shows the artist hero card and the "Qui ho ha encertat:" highlight (or "Ningú ho ha encertat 🙈" when applicable).
+- Leaderboard rows are sorted by points desc, with `+N` badges animating in only for participants who gained points this round.
+- Dark mode (system-level) renders cleanly across all three views.
+
+**Behavioral:**
+- Late-joining main stage (open `/mainstage` after the host has revealed) lands directly on the results view.
+- Late-joining main stage after scoring lands directly on the leaderboard.
+- Non-host who has not voted, after reveal, sees the "results on main screen" banner (not disabled radio options).
+- Re-voting in the activity panel before reveal updates the existing row (no duplicates in `votes`).
 
 ---
 
-For questions or issues, check:
-- `CLAUDE.md` - Full project context
-- `IMPLEMENTATION_STATUS.md` - Current implementation status
+## Common issues
+
+**Identity picker doesn't list anyone.** `participants` table is empty or the realtime publication isn't enabled. Re-run the verification queries from `README.md`.
+
+**Main stage stuck on "voting" after host reveals.** Realtime channel didn't subscribe. Check the browser console for Supabase connection errors. Verify env vars.
+
+**Leaderboard points don't update live.** Postgres Changes subscription failed. Confirm `participants` is in the `supabase_realtime` publication. Check console.
+
+**Host buttons missing.** `sessionStorage.hostOfPollId !== pollState.pollId`. Either the host opened the activity panel in a tab that didn't initiate the activity, or the page was reloaded after sessionStorage was cleared. Restart the activity from `/sidepanel`.
+
+**Host can't drive the flow.** Host picked themselves as the artist. Restart with a different artist.
+
+---
+
+## What's intentionally not tested here
+
+- Identity collisions (two clients claiming the same participant): allowed by design, last vote wins.
+- Voting after reveal: blocked client-side; if you bypass the UI, the scoring RPC will still produce a correct result based on the snapshot of votes at scoring time.
+- Concurrent host scoring clicks: idempotent server-side.

@@ -43,9 +43,16 @@ create table if not exists public.score_events (
 );
 
 -- 3. Realtime publication --------------------------------------------------
--- Drop-and-add is idempotent. participants is the only table we need CDC on;
--- ephemeral vote / reveal / show-leaderboard events ride on Realtime broadcast.
-alter publication supabase_realtime add table public.participants;
+-- participants is the only table we need CDC on; ephemeral vote / reveal /
+-- show-leaderboard events ride on Realtime broadcast. Wrapped in a DO block
+-- so re-running the migration after the table is already in the publication
+-- is a no-op instead of raising 42710.
+do $$
+begin
+  alter publication supabase_realtime add table public.participants;
+exception
+  when duplicate_object then null;
+end $$;
 
 -- 4. Scoring RPC -----------------------------------------------------------
 

@@ -228,19 +228,25 @@ export default function Page() {
                   </div>
                 )}
               </div>
+            ) : hasRevealed ? (
+              <div className="p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
+                <p className="font-heading text-lg text-crayon-purple font-bold">
+                  Els resultats es mostren a la pantalla principal
+                </p>
+              </div>
             ) : (
               <div>
                 <div className="mb-6">
                   <OptionList
-                    options={pollState.participants.map((p) => ({ id: p.id, name: p.name }))}
+                    options={pollState.participants}
                     selectedOptionId={selectedOptionId}
                     onSelect={setSelectedOptionId}
-                    disabled={isSubmitting || hasRevealed}
+                    disabled={isSubmitting}
                   />
                 </div>
                 <VoteButton
                   onClick={handleVoteSubmit}
-                  disabled={!selectedOptionId || isSubmitting || hasRevealed}
+                  disabled={!selectedOptionId || isSubmitting}
                   loading={isSubmitting}
                 />
               </div>

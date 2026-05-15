@@ -1,28 +1,31 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useCallback } from 'react';
-import { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { saveVote } from '@/lib/voteDatabase';
-import { Vote, PollMessage } from '@/types/poll.types';
+import { useEffect, useRef, useCallback } from "react";
+import { RealtimeChannel } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { saveVote } from "@/lib/votes";
+import { Vote, PollMessage } from "@/types/poll.types";
 
 type VoteCallback = (vote: Vote) => void;
 type RevealCallback = () => void;
+type ShowLeaderboardCallback = () => void;
 
 interface UseVoteChannelReturn {
   sendVote: (vote: Vote) => Promise<void>;
   sendRevealCommand: () => Promise<void>;
+  sendShowLeaderboard: () => Promise<void>;
   isConnected: boolean;
 }
 
 /**
- * Custom hook for Supabase Realtime vote broadcasting
- * Creates a channel based on pollId and handles vote pub/sub
+ * Realtime channel hook for a single poll.
+ * Sends and receives VOTE_CAST, REVEAL_RESULTS, and SHOW_LEADERBOARD broadcasts.
  */
 export function useVoteChannel(
   pollId: string | null,
   onVoteReceived?: VoteCallback,
-  onRevealResults?: RevealCallback
+  onRevealResults?: RevealCallback,
+  onShowLeaderboard?: ShowLeaderboardCallback
 ): UseVoteChannelReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const isConnectedRef = useRef(false);
@@ -34,25 +37,22 @@ export function useVoteChannel(
     const channel = supabase.channel(channelName);
 
     channel
-      .on('broadcast', { event: 'poll' }, (payload) => {
+      .on("broadcast", { event: "poll" }, (payload) => {
         try {
           const message = payload.payload as PollMessage;
-          if (message.type === 'VOTE_CAST' && onVoteReceived) {
-            onVoteReceived(message.payload as Vote);
-          }
-          if (message.type === 'REVEAL_RESULTS' && onRevealResults) {
+          if (message.type === "VOTE_CAST" && onVoteReceived) {
+            onVoteReceived(message.payload);
+          } else if (message.type === "REVEAL_RESULTS" && onRevealResults) {
             onRevealResults();
+          } else if (message.type === "SHOW_LEADERBOARD" && onShowLeaderboard) {
+            onShowLeaderboard();
           }
         } catch (error) {
-          console.error('Error processing message:', error);
+          console.error("Error processing message:", error);
         }
       })
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          isConnectedRef.current = true;
-        } else {
-          isConnectedRef.current = false;
-        }
+        isConnectedRef.current = status === "SUBSCRIBED";
       });
 
     channelRef.current = channel;
@@ -62,54 +62,40 @@ export function useVoteChannel(
       channelRef.current = null;
       isConnectedRef.current = false;
     };
-  }, [pollId, onVoteReceived, onRevealResults]);
+  }, [pollId, onVoteReceived, onRevealResults, onShowLeaderboard]);
 
   const sendVote = useCallback(
     async (vote: Vote): Promise<void> => {
       if (!channelRef.current || !pollId) {
-        throw new Error('Channel not connected');
+        throw new Error("Channel not connected");
       }
-
-      // Persist vote to database
       await saveVote(pollId, vote);
-
-      // Broadcast for real-time updates to connected clients
       const message: PollMessage = {
-        type: 'VOTE_CAST',
+        type: "VOTE_CAST",
         payload: vote,
         timestamp: Date.now(),
       };
-
-      await channelRef.current.send({
-        type: 'broadcast',
-        event: 'poll',
-        payload: message,
-      });
+      await channelRef.current.send({ type: "broadcast", event: "poll", payload: message });
     },
     [pollId]
   );
 
   const sendRevealCommand = useCallback(async (): Promise<void> => {
-    if (!channelRef.current) {
-      throw new Error('Channel not connected');
-    }
+    if (!channelRef.current) throw new Error("Channel not connected");
+    const message: PollMessage = { type: "REVEAL_RESULTS", payload: null, timestamp: Date.now() };
+    await channelRef.current.send({ type: "broadcast", event: "poll", payload: message });
+  }, []);
 
-    const message: PollMessage = {
-      type: 'REVEAL_RESULTS',
-      payload: null,
-      timestamp: Date.now(),
-    };
-
-    await channelRef.current.send({
-      type: 'broadcast',
-      event: 'poll',
-      payload: message,
-    });
+  const sendShowLeaderboard = useCallback(async (): Promise<void> => {
+    if (!channelRef.current) throw new Error("Channel not connected");
+    const message: PollMessage = { type: "SHOW_LEADERBOARD", payload: null, timestamp: Date.now() };
+    await channelRef.current.send({ type: "broadcast", event: "poll", payload: message });
   }, []);
 
   return {
     sendVote,
     sendRevealCommand,
+    sendShowLeaderboard,
     isConnected: isConnectedRef.current,
   };
 }

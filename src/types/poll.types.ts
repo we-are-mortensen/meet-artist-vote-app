@@ -1,107 +1,69 @@
 /**
- * Type definitions for the Artist Vote polling system
+ * Type definitions for the Artist Vote gamified polling system.
  */
 
-/**
- * Represents a poll option that users can vote for
- */
-export type PollOption = {
-  /** Unique identifier for the option */
+export type Participant = {
   id: string;
-  /** Display name of the option (in Catalan or as provided) */
   name: string;
+  points: number;
 };
 
-/**
- * Represents a single anonymous vote
- */
 export type Vote = {
-  /** Anonymous ID of the voter */
-  voterId: string;
-  /** ID of the option that was voted for */
-  selectedOptionId: string;
-  /** Unix timestamp when the vote was cast */
+  voterParticipantId: string;
+  votedForId: string;
   timestamp: number;
 };
 
-/**
- * Overall state of the poll
- */
+export type PollStatus = "voting" | "revealed" | "scored";
+
 export type PollState = {
-  /** List of all poll options that can be voted for */
-  options: PollOption[];
-  /** All votes that have been cast */
-  votes: Vote[];
-  /** Current status of the poll */
-  status: "setup" | "voting" | "completed";
-  /** ID of the poll (useful for tiebreaker rounds) */
   pollId: string;
-  /** Round number (1 for initial, 2+ for tiebreakers) */
-  round: number;
-  /** Source of the poll options */
-  optionsSource: "predefined" | "custom";
-  /** ID of the correct answer option, selected by the host during setup */
-  correctOptionId: string;
+  correctParticipantId: string;
+  participants: Participant[];
+  status: PollStatus;
+};
+
+export type ScoreEventReason =
+  | "nobody_guessed"
+  | "all_guessed"
+  | "correct_guess"
+  | "artist_per_wrong_vote";
+
+export type ScoreEvent = {
+  pollId: string;
+  participantId: string;
+  delta: number;
+  reason: ScoreEventReason;
 };
 
 /**
- * Calculated results for a single poll option
+ * Aggregated per-option result for the results screen.
  */
 export type VoteResult = {
-  /** ID of the poll option */
-  optionId: string;
-  /** Name of the poll option */
-  optionName: string;
-  /** Number of votes received */
+  participantId: string;
+  participantName: string;
   voteCount: number;
-  /** Percentage of total votes (0-100) */
   percentage: number;
 };
 
-/**
- * Complete voting results
- */
 export type VoteResults = {
-  /** Results for each option, sorted by vote count descending */
   results: VoteResult[];
-  /** Total number of votes cast */
   totalVotes: number;
-  /** Whether there's a tie for first place */
-  hasTie: boolean;
-  /** Options that are tied (if any) */
-  tiedOptions: PollOption[];
-  /** The winner (if no tie) */
-  winner: VoteResult | null;
+  correctGuessers: Participant[];
 };
 
 /**
- * Message types for Supabase Realtime broadcast
+ * Real-time broadcast message envelope.
  */
-export type MessageType = "VOTE_CAST" | "REVEAL_RESULTS";
+export type PollMessage =
+  | { type: "VOTE_CAST";        payload: Vote;  timestamp: number }
+  | { type: "REVEAL_RESULTS";   payload: null;  timestamp: number }
+  | { type: "SHOW_LEADERBOARD"; payload: null;  timestamp: number };
 
 /**
- * Supabase Realtime message structure
+ * Identity stored in sessionStorage so a participant doesn't re-pick on every poll.
  */
-export type PollMessage = { type: "VOTE_CAST"; payload: Vote; timestamp: number } | { type: "REVEAL_RESULTS"; payload: null; timestamp: number };
-
-/**
- * Predefined list of poll options loaded from JSON
- */
-export type PredefinedList = {
-  /** Unique identifier for the list */
+export type StoredIdentity = {
   id: string;
-  /** Display name of the list (in Catalan) */
   name: string;
-  /** Description of the list (in Catalan) */
-  description: string;
-  /** Array of option names */
-  options: string[];
-};
-
-/**
- * Container for all predefined lists
- */
-export type PredefinedListsData = {
-  /** Array of available predefined lists */
-  lists: PredefinedList[];
 };

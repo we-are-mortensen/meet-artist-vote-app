@@ -307,8 +307,5 @@ See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing instructions 
 - **CLAUDE.md** (this file): Complete architecture, features, and technical details
 - **IMPLEMENTATION_STATUS.md**: Current implementation status and completion summary
 - **TESTING_GUIDE.md**: Step-by-step testing instructions and test scenarios
-
-### Archived Documentation
-- **DEVELOPMENT_PLAN.md.archived**: Original development plan (superseded)
-- **IMPLEMENTATION_SUMMARY.md.archived**: Old implementation summary (outdated)
-- **POLL_OPTIONS_MODIFICATION_PLAN.md.archived**: Poll options feature plan (completed)
+- **docs/superpowers/specs/2026-05-15-artist-vote-gamification-design.md**: Design spec for the gamified v2
+- **docs/superpowers/plans/2026-05-15-artist-vote-gamification.md**: Implementation plan for the gamified v2

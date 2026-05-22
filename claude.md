@@ -45,9 +45,8 @@ This is a Next.js project that creates a Google Meet Add-on for a gamified daily
     VotingProgress.tsx         # Live vote count on the main stage
     ResultsView.tsx            # Reveal screen: correct artist + correct-guessers
     LeaderboardView.tsx        # Sorted standings with animated +N deltas
-    IdentityPicker.tsx         # First-load picker for "who am I?"
+    IdentityPicker.tsx         # First-load picker for "who am I?" (dropdown + confirm)
     IdentityHeader.tsx         # Persistent header with name + live points
-    ArtistWaitingView.tsx      # Shown to the participant who IS the artist
   /hooks
     useVoteChannel.ts          # Supabase Realtime hook for vote pub/sub
   /lib
@@ -56,7 +55,7 @@ This is a Next.js project that creates a Google Meet Add-on for a gamified daily
     polls.ts                   # Creates / updates / reads polls rows
     votes.ts                   # Identified vote upsert + load helpers
     scoring.ts                 # Client wrapper for the score_poll RPC
-    identity.ts                # sessionStorage identity helpers
+    identity.ts                # localStorage identity helpers
   /shared
     constants.ts               # Configuration constants
   /types
@@ -116,10 +115,9 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 
 3. **Activity Side Panel** ([src/app/activitysidepanel/page.tsx](src/app/activitysidepanel/page.tsx))
    - Shown to all participants during the activity
-   - First-load flow: `IdentityPicker` lets the participant pick themselves from the participants table. Result stored under `sessionStorage` key `artistVote.identity`.
+   - First-load flow: `IdentityPicker` (dropdown + confirm button) lets the participant pick themselves from the participants table. Result stored under `localStorage` key `artistVote.identity` so identity persists across Meet sessions.
    - Returning visitor (identity already in storage) skips the picker. Persistent `IdentityHeader` displays their name + live points, subscribing to Postgres Changes on `participants` so points update without reloads.
-   - If the chosen identity matches the round's artist: renders `ArtistWaitingView` (no vote UI, no host controls).
-   - Otherwise: renders `OptionList` with all participants. Submitting upserts a row into `votes` keyed by `(poll_id, voter_participant_id)` — "last vote wins" until the host reveals.
+   - Every participant — including today's artist — sees the same `OptionList` voting UI. Submitting upserts a row into `votes` keyed by `(poll_id, voter_participant_id)` — "last vote wins" until the host reveals. **Artist exception:** if the voter's identity matches `polls.correct_participant_id`, the client renders the confirmation screen but skips the broadcast and the DB write, so the artist's screen is indistinguishable from anyone else's without leaking a vote.
    - **Host-only controls** (visible when `sessionStorage.getItem('hostOfPollId') === pollId`): two sequential buttons. "Revelar resultats" flips `polls.status` to `revealed` and broadcasts `REVEAL_RESULTS`; "Mostrar puntuació" calls the `score_poll` RPC and broadcasts `SHOW_LEADERBOARD`.
    - Voting cuts off at reveal — late voters get a closed state.
 
@@ -134,8 +132,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 
 The app implements a gamified daily round of "Qui és l'artista d'avui?":
 - **Poll Setup**: Host loads participants from Supabase and picks today's artist from a dropdown; pressing "Començar votació" creates a `polls` row and starts the activity
-- **Identity**: Each participant picks themselves once on first load; identity persists in `sessionStorage` and drives the live points header
-- **Voting**: Identified votes (`voter_participant_id`, `voted_for_id`); the participant who is today's artist sees a waiting screen instead of vote UI
+- **Identity**: Each participant picks themselves once on first load via a dropdown; identity persists in `localStorage` so it survives the Meet iframe being torn down between calls, and drives the live points header
+- **Voting**: Identified votes (`voter_participant_id`, `voted_for_id`); the artist sees the same voting UI as everyone else, but their submit is short-circuited client-side (no DB write, no broadcast) so observers can't spot the artist by walking through identities
 - **Two-stage Reveal**: Host first reveals the correct answer + the list of correct guessers; then triggers scoring, which transitions the main stage to a leaderboard
 - **Scoring**: Server-side `score_poll` RPC implements Dixit-adapted rules with SQL-tunable constants; results are persisted via `score_events` rows and aggregated on `participants.points`
 - **Data Flow**: Supabase Realtime Broadcast for poll events + Postgres Changes on `participants` for live point updates
@@ -174,7 +172,7 @@ npm start
 
 ### Voting System
 - **Identified votes**: every row in `votes` stores `poll_id`, `voter_participant_id`, `voted_for_id`, and a timestamp. There is no anonymous fallback.
-- **Artist exception**: the participant whose identity matches `polls.correct_participant_id` sees `ArtistWaitingView` and does not vote.
+- **Artist exception**: the participant whose identity matches `polls.correct_participant_id` sees the same voting UI as everyone else, but their submit is short-circuited client-side — the local `hasVoted` state flips and the "Has votat per X" confirmation renders, but no row is written to `votes` and no `VOTE_CAST` event is broadcast. This keeps the artist's screen indistinguishable from any other participant's so observers can't snoop the answer by walking through identities. The host should still avoid picking themselves as the artist (see Host vs artist note below).
 - **One vote per voter per poll**: the table has a unique constraint on `(poll_id, voter_participant_id)`. Submissions UPSERT, so "last vote wins" until reveal.
 - **Cutoff**: once the host flips `polls.status` to `revealed`, the activity panel shows the closed state and stops accepting changes.
 
@@ -190,7 +188,7 @@ The app uses `sessionStorage` to reliably identify the activity host:
 3. If they match, the user is the host and sees host-only features (the "Revelar resultats" and "Mostrar puntuació" buttons)
 4. This approach handles multiple activities in the same browser session correctly
 
-**Host vs artist:** The host should not pick themselves as today's artist. The artist sees a waiting screen with no controls; if the host is the artist, no one can press "Revelar resultats" or "Mostrar puntuació". Either pick a different artist or have a second host identity ready.
+**Host vs artist:** The host should not pick themselves as today's artist. The artist sees the regular voting UI and their submit is silently dropped, so if the host is also the artist their first submit won't actually do anything beyond unlocking the local "Has votat" branch where the host buttons live — they'll still appear, but the artist's vote (the host's own "real" vote) was never recorded. Either pick a different artist or have a second host identity ready.
 
 ### Data Flow
 ```
@@ -201,10 +199,11 @@ Setup Side Panel (host)
   ↓ startActivity({additionalData: {pollId, correctParticipantId, participants}})
   ↓ sessionStorage.hostOfPollId = pollId
 Activity Side Panel
-  ↓ IdentityPicker (first time) → sessionStorage.artistVote.identity
+  ↓ IdentityPicker (first time, dropdown) → localStorage.artistVote.identity
   ↓ IdentityHeader (live points via Postgres Changes)
-  ↓ artist → ArtistWaitingView | other → vote UI
-  ↓ vote: UPSERT votes (voter, votedFor, ts), broadcast VOTE_CAST
+  ↓ everyone sees the same vote UI (artist included)
+  ↓ vote: non-artist → UPSERT votes (voter, votedFor, ts), broadcast VOTE_CAST
+  ↓        artist     → no DB write, no broadcast (local UI only)
   ↓ host reveals: UPDATE polls.status='revealed', broadcast REVEAL_RESULTS
   ↓ host shows points: rpc score_poll(pollId), broadcast SHOW_LEADERBOARD
 Main Stage

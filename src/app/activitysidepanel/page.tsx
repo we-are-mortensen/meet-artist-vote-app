@@ -10,7 +10,6 @@ import { scorePoll } from "@/lib/scoring";
 import { revealPoll } from "@/lib/polls";
 import IdentityHeader from "@/components/IdentityHeader";
 import IdentityPicker from "@/components/IdentityPicker";
-import ArtistWaitingView from "@/components/ArtistWaitingView";
 import PollQuestion from "@/components/PollQuestion";
 import OptionList from "@/components/OptionList";
 import VoteButton from "@/components/VoteButton";
@@ -95,14 +94,21 @@ export default function Page() {
     if (!selectedOptionId || !pollState || !identity) return;
     setIsSubmitting(true);
     try {
-      const vote: Vote = {
-        voterParticipantId: identity.id,
-        votedForId: selectedOptionId,
-        timestamp: Date.now(),
-      };
       const target = pollState.participants.find((p) => p.id === selectedOptionId);
       setVotedForName(target?.name ?? "Desconegut");
-      await sendVote(vote);
+
+      // The artist must see the same UI as everyone else so observers walking
+      // through identities can't spot who's the artist. Skip the DB write and
+      // the broadcast — they would otherwise pollute votes / live counts.
+      if (identity.id !== pollState.correctParticipantId) {
+        const vote: Vote = {
+          voterParticipantId: identity.id,
+          votedForId: selectedOptionId,
+          timestamp: Date.now(),
+        };
+        await sendVote(vote);
+      }
+
       setHasVoted(true);
     } catch (err) {
       console.error("Error submitting vote:", err);
@@ -159,7 +165,6 @@ export default function Page() {
     );
   }
 
-  const isArtist = identity.id === pollState.correctParticipantId;
   const headerInitialPoints =
     pollState.participants.find((p) => p.id === identity.id)?.points ?? 0;
 
@@ -173,85 +178,79 @@ export default function Page() {
           onChange={onChangeIdentity}
         />
 
-        {isArtist ? (
-          <ArtistWaitingView name={identity.name} hasRevealed={hasRevealed} />
-        ) : (
-          <>
-            <PollQuestion />
+        <PollQuestion />
 
-            {hasVoted ? (
-              <div>
-                <div className="p-5 bg-crayon-green/10 border-3 border-crayon-green hand-drawn text-center mb-6">
-                  <div className="flex justify-center gap-2 mb-2">
-                    <span className="text-3xl">✅</span>
-                  </div>
-                  <p className="font-heading text-lg text-crayon-green font-bold">
-                    Has votat per {votedForName}
-                  </p>
-                </div>
-
-                {isHost && !hasRevealed && (
-                  <button
-                    type="button"
-                    onClick={handleRevealClick}
-                    disabled={isRevealing}
-                    className={`w-full py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
-                      isRevealing
-                        ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
-                        : "bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
-                    }`}
-                  >
-                    {isRevealing ? "Revelant..." : (<><span className="text-2xl">🏅</span>Revelar resultats</>)}
-                  </button>
-                )}
-
-                {isHost && hasRevealed && !hasShownLeaderboard && (
-                  <button
-                    type="button"
-                    onClick={handleShowLeaderboardClick}
-                    disabled={isShowingLeaderboard}
-                    className={`w-full mt-4 py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
-                      isShowingLeaderboard
-                        ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
-                        : "bg-crayon-orange border-crayon-orange shadow-playful-orange hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
-                    }`}
-                  >
-                    {isShowingLeaderboard ? "Calculant..." : (<><span className="text-2xl">🏆</span>Mostrar puntuació</>)}
-                  </button>
-                )}
-
-                {hasRevealed && (
-                  <div className="mt-6 p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
-                    <p className="font-heading text-lg text-crayon-purple font-bold">
-                      Els resultats es mostren a la pantalla principal
-                    </p>
-                  </div>
-                )}
+        {hasVoted ? (
+          <div>
+            <div className="p-5 bg-crayon-green/10 border-3 border-crayon-green hand-drawn text-center mb-6">
+              <div className="flex justify-center gap-2 mb-2">
+                <span className="text-3xl">✅</span>
               </div>
-            ) : hasRevealed ? (
-              <div className="p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
+              <p className="font-heading text-lg text-crayon-green font-bold">
+                Has votat per {votedForName}
+              </p>
+            </div>
+
+            {isHost && !hasRevealed && (
+              <button
+                type="button"
+                onClick={handleRevealClick}
+                disabled={isRevealing}
+                className={`w-full py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
+                  isRevealing
+                    ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                    : "bg-crayon-purple border-crayon-purple shadow-playful-purple hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
+                }`}
+              >
+                {isRevealing ? "Revelant..." : (<><span className="text-2xl">🏅</span>Revelar resultats</>)}
+              </button>
+            )}
+
+            {isHost && hasRevealed && !hasShownLeaderboard && (
+              <button
+                type="button"
+                onClick={handleShowLeaderboardClick}
+                disabled={isShowingLeaderboard}
+                className={`w-full mt-4 py-4 px-6 hand-drawn border-3 font-heading text-xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-3 ${
+                  isShowingLeaderboard
+                    ? "bg-text-secondary/40 border-text-secondary/40 cursor-not-allowed"
+                    : "bg-crayon-orange border-crayon-orange shadow-playful-orange hover:scale-[1.02] hover:rotate-1 active:scale-[0.98] active:rotate-0"
+                }`}
+              >
+                {isShowingLeaderboard ? "Calculant..." : (<><span className="text-2xl">🏆</span>Mostrar puntuació</>)}
+              </button>
+            )}
+
+            {hasRevealed && (
+              <div className="mt-6 p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
                 <p className="font-heading text-lg text-crayon-purple font-bold">
                   Els resultats es mostren a la pantalla principal
                 </p>
               </div>
-            ) : (
-              <div>
-                <div className="mb-6">
-                  <OptionList
-                    options={pollState.participants}
-                    selectedOptionId={selectedOptionId}
-                    onSelect={setSelectedOptionId}
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <VoteButton
-                  onClick={handleVoteSubmit}
-                  disabled={!selectedOptionId || isSubmitting}
-                  loading={isSubmitting}
-                />
-              </div>
             )}
-          </>
+          </div>
+        ) : hasRevealed ? (
+          <div className="p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">
+            <p className="font-heading text-lg text-crayon-purple font-bold">
+              Els resultats es mostren a la pantalla principal
+            </p>
+          </div>
+        ) : (
+          <div>
+            <div className="mb-6">
+              <OptionList
+                options={pollState.participants}
+                selectedOptionId={selectedOptionId}
+                onSelect={setSelectedOptionId}
+                disabled={isSubmitting}
+              />
+            </div>
+            <VoteButton
+              onClick={handleVoteSubmit}
+              disabled={!selectedOptionId || isSubmitting}
+              loading={isSubmitting}
+            />
+          </div>
         )}
       </div>
     </div>

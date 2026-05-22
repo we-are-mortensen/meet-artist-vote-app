@@ -61,7 +61,8 @@ export type PollMessage =
   | { type: "SHOW_LEADERBOARD"; payload: null;  timestamp: number };
 
 /**
- * Identity stored in sessionStorage so a participant doesn't re-pick on every poll.
+ * Identity stored in localStorage so a participant doesn't re-pick on every poll
+ * — persists across Meet sessions, not just the current iframe lifetime.
  */
 export type StoredIdentity = {
   id: string;

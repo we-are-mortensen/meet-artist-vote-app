@@ -5,7 +5,7 @@ import { meet, MeetMainStageClient } from "@googleworkspace/meet-addons/meet.add
 import { CLOUD_PROJECT_NUMBER } from "@/shared/constants";
 import type { Participant, PollState, Vote, ScoreEvent } from "@/types/poll.types";
 import { calculateResults } from "@/utils/voteCalculations";
-import { loadVotes } from "@/lib/votes";
+import { loadVotes, subscribeToVotes } from "@/lib/votes";
 import { listParticipants, subscribeToParticipants } from "@/lib/participants";
 import { getPoll } from "@/lib/polls";
 import { loadScoreEvents } from "@/lib/scoring";
@@ -30,9 +30,16 @@ export default function Page() {
     });
   }, []);
 
-  const handleRevealResults = useCallback(() => {
+  const handleRevealResults = useCallback(async () => {
+    if (!pollState) return;
+    try {
+      const fresh = await loadVotes(pollState.pollId);
+      setVotes(fresh);
+    } catch (err) {
+      console.error("Error reloading votes on reveal:", err);
+    }
     setView((v) => (v === "voting" ? "results" : v));
-  }, []);
+  }, [pollState]);
 
   const handleShowLeaderboard = useCallback(async () => {
     if (!pollState) return;
@@ -65,6 +72,16 @@ export default function Page() {
       channel.unsubscribe();
     };
   }, []);
+
+  // CDC backstop: catch any VOTE_CAST broadcasts dropped before the channel
+  // finished subscribing, or lost to transient network failures.
+  useEffect(() => {
+    if (!pollState?.pollId) return;
+    const channel = subscribeToVotes(pollState.pollId, handleVoteReceived);
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [pollState?.pollId, handleVoteReceived]);
 
   // Cold-start: parse starting state, then sync with DB for late joiners.
   useEffect(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import type { Vote } from "@/types/poll.types";
 
@@ -48,4 +49,38 @@ export async function loadVotes(pollId: string): Promise<Vote[]> {
     throw new Error(`Failed to load votes: ${error.message}`);
   }
   return (data as VoteRow[]).map(rowToVote);
+}
+
+/**
+ * Subscribes to INSERT/UPDATE events on the votes table for a single poll.
+ * Acts as an at-least-once backstop for dropped VOTE_CAST broadcasts.
+ */
+export function subscribeToVotes(
+  pollId: string,
+  onVote: (vote: Vote) => void
+): RealtimeChannel {
+  const channel = supabase
+    .channel(`votes-cdc-${pollId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "votes",
+        filter: `poll_id=eq.${pollId}`,
+      },
+      (payload) => onVote(rowToVote(payload.new as VoteRow))
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "votes",
+        filter: `poll_id=eq.${pollId}`,
+      },
+      (payload) => onVote(rowToVote(payload.new as VoteRow))
+    )
+    .subscribe();
+  return channel;
 }

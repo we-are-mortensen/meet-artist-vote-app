@@ -1,10 +1,38 @@
 "use client";
 
+import type { Participant, Vote } from "@/types/poll.types";
+
 type VotingProgressProps = {
   voteCount: number;
+  participants: Participant[];
+  votes: Vote[];
+  correctParticipantId: string;
+  artistVoted: boolean;
 };
 
-export default function VotingProgress({ voteCount }: VotingProgressProps) {
+const remainingPillColors = [
+  "border-crayon-blue text-crayon-blue bg-crayon-blue/10",
+  "border-crayon-pink text-crayon-pink bg-crayon-pink/10",
+  "border-crayon-green text-crayon-green bg-crayon-green/10",
+  "border-crayon-purple text-crayon-purple bg-crayon-purple/10",
+  "border-crayon-orange text-crayon-orange bg-crayon-orange/10",
+  "border-crayon-red text-crayon-red bg-crayon-red/10",
+];
+
+export default function VotingProgress({
+  voteCount,
+  participants,
+  votes,
+  correctParticipantId,
+  artistVoted,
+}: VotingProgressProps) {
+  const votedIds = new Set(votes.map((v) => v.voterParticipantId));
+  const remaining = participants.filter((p) => {
+    if (votedIds.has(p.id)) return false;
+    if (p.id === correctParticipantId && artistVoted) return false;
+    return true;
+  });
+
   return (
     <div className="max-w-4xl mx-auto text-center py-12">
       <div className="mb-8">
@@ -37,6 +65,32 @@ export default function VotingProgress({ voteCount }: VotingProgressProps) {
           <div className="h-4 w-4 bg-crayon-green rounded-full animate-bounce" style={{ animationDelay: "450ms" }}></div>
           <div className="h-4 w-4 bg-crayon-purple rounded-full animate-bounce" style={{ animationDelay: "600ms" }}></div>
         </div>
+      </div>
+
+      <div className="mt-12 max-w-3xl mx-auto">
+        {remaining.length === 0 ? (
+          <p className="font-heading text-2xl font-bold text-crayon-green">
+            Tothom ha votat! 🎉
+          </p>
+        ) : (
+          <>
+            <p className="font-heading text-xl font-bold text-text-secondary mb-4">
+              Falten per votar:
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              {remaining.map((p, index) => (
+                <span
+                  key={p.id}
+                  className={`px-4 py-2 hand-drawn-subtle border-3 font-heading text-lg font-bold ${
+                    remainingPillColors[index % remainingPillColors.length]
+                  }`}
+                >
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

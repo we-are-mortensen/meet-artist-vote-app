@@ -7,7 +7,7 @@ import type { Participant, PollState, Vote, ScoreEvent } from "@/types/poll.type
 import { calculateResults } from "@/utils/voteCalculations";
 import { loadVotes, subscribeToVotes } from "@/lib/votes";
 import { listParticipants, subscribeToParticipants } from "@/lib/participants";
-import { getPoll } from "@/lib/polls";
+import { getPoll, subscribeToPoll } from "@/lib/polls";
 import { loadScoreEvents } from "@/lib/scoring";
 import { useVoteChannel } from "@/hooks/useVoteChannel";
 import VotingProgress from "@/components/VotingProgress";
@@ -83,6 +83,20 @@ export default function Page() {
     };
   }, [pollState?.pollId, handleVoteReceived]);
 
+  // Picks up polls.artist_voted flipping so the "Falten per votar" list can
+  // erase the artist without their client having to broadcast anything.
+  useEffect(() => {
+    if (!pollState?.pollId) return;
+    const channel = subscribeToPoll(pollState.pollId, (updated) => {
+      setPollState((prev) =>
+        prev ? { ...prev, artistVoted: updated.artistVoted } : prev
+      );
+    });
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [pollState?.pollId]);
+
   // Cold-start: parse starting state, then sync with DB for late joiners.
   useEffect(() => {
     async function initialize() {
@@ -100,6 +114,8 @@ export default function Page() {
       try {
         const persisted = await getPoll(state.pollId);
         const status = persisted?.status ?? "voting";
+        const artistVoted = persisted?.artistVoted ?? false;
+        setPollState((prev) => (prev ? { ...prev, artistVoted } : prev));
 
         if (status === "voting") {
           const v = await loadVotes(state.pollId);
@@ -143,7 +159,13 @@ export default function Page() {
   if (view === "voting") {
     return (
       <div className="min-h-screen bg-paper bg-confetti py-8 px-4">
-        <VotingProgress voteCount={votes.length} />
+        <VotingProgress
+          voteCount={votes.length}
+          participants={participants}
+          votes={votes}
+          correctParticipantId={pollState.correctParticipantId}
+          artistVoted={pollState.artistVoted}
+        />
       </div>
     );
   }

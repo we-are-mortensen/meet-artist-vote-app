@@ -7,7 +7,7 @@ import type { Participant, PollState, Vote, StoredIdentity } from "@/types/poll.
 import { useVoteChannel } from "@/hooks/useVoteChannel";
 import { getIdentity, setIdentity as storeIdentity, clearIdentity } from "@/lib/identity";
 import { scorePoll } from "@/lib/scoring";
-import { revealPoll } from "@/lib/polls";
+import { markArtistVoted, revealPoll } from "@/lib/polls";
 import IdentityHeader from "@/components/IdentityHeader";
 import IdentityPicker from "@/components/IdentityPicker";
 import PollQuestion from "@/components/PollQuestion";
@@ -98,8 +98,11 @@ export default function Page() {
       setVotedForName(target?.name ?? "Desconegut");
 
       // The artist must see the same UI as everyone else so observers walking
-      // through identities can't spot who's the artist. Skip the DB write and
-      // the broadcast — they would otherwise pollute votes / live counts.
+      // through identities can't spot who's the artist. Skip the votes write
+      // and the broadcast — they would otherwise pollute votes / live counts.
+      // Instead, flip polls.artist_voted so the main stage can erase the
+      // artist from the "Falten per votar" list without learning which option
+      // they picked.
       if (identity.id !== pollState.correctParticipantId) {
         const vote: Vote = {
           voterParticipantId: identity.id,
@@ -107,6 +110,8 @@ export default function Page() {
           timestamp: Date.now(),
         };
         await sendVote(vote);
+      } else {
+        await markArtistVoted(pollState.pollId);
       }
 
       setHasVoted(true);

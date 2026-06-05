@@ -21,6 +21,7 @@ export type PollState = {
   correctParticipantId: string;
   participants: Participant[];
   status: PollStatus;
+  artistVoted: boolean;
 };
 
 export type ScoreEventReason =

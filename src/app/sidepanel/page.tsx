@@ -53,6 +53,7 @@ export default function Page() {
         correctParticipantId,
         participants,
         status: "voting",
+        artistVoted: false,
       };
 
       await sidePanelClient.startActivity({

@@ -20,7 +20,6 @@ export type PollState = {
   pollId: string;
   correctParticipantId: string;
   participants: Participant[];
-  status: PollStatus;
   artistVoted: boolean;
 };
 

@@ -9,7 +9,6 @@ type PollRow = {
   correct_participant_id: string;
   status: PollStatus;
   artist_voted: boolean;
-  scored_at: string | null;
 };
 
 export type PollRecord = {
@@ -45,7 +44,7 @@ export async function createPoll(args: {
 export async function getPoll(pollId: string): Promise<PollRecord | null> {
   const { data, error } = await supabase
     .from("polls")
-    .select("id, correct_participant_id, status, artist_voted, scored_at")
+    .select("id, correct_participant_id, status, artist_voted")
     .eq("id", pollId)
     .maybeSingle();
   if (error) {

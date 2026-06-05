@@ -33,11 +33,6 @@ export default function Page() {
 
   const [isHost, setIsHost] = useState(false);
 
-  const handleVoteReceived = useCallback((_vote: Vote) => {
-    // Activity panel doesn't need to display vote counts to non-host participants.
-    // Kept as a no-op so the channel is fully wired (mainstage cares about this).
-  }, []);
-
   const handleRevealResults = useCallback(() => {
     setHasRevealed(true);
   }, []);
@@ -48,7 +43,7 @@ export default function Page() {
 
   const { sendVote, sendRevealCommand, sendShowLeaderboard } = useVoteChannel(
     pollState?.pollId ?? null,
-    handleVoteReceived,
+    undefined,
     handleRevealResults,
     handleShowLeaderboard
   );

@@ -29,19 +29,6 @@ export async function listParticipants(): Promise<Participant[]> {
   return (data as ParticipantRow[]).map(rowToParticipant);
 }
 
-export async function getParticipantById(id: string): Promise<Participant | null> {
-  const { data, error } = await supabase
-    .from("participants")
-    .select("id, name, points")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to load participant: ${error.message}`);
-  }
-  return data ? rowToParticipant(data as ParticipantRow) : null;
-}
-
 /**
  * Subscribes to UPDATE events on the participants table.
  * The callback fires with the updated row whenever any participant's points change.

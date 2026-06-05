@@ -14,7 +14,6 @@ interface UseVoteChannelReturn {
   sendVote: (vote: Vote) => Promise<void>;
   sendRevealCommand: () => Promise<void>;
   sendShowLeaderboard: () => Promise<void>;
-  isConnected: boolean;
 }
 
 /**
@@ -28,7 +27,6 @@ export function useVoteChannel(
   onShowLeaderboard?: ShowLeaderboardCallback
 ): UseVoteChannelReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const isConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!pollId) return;
@@ -51,16 +49,13 @@ export function useVoteChannel(
           console.error("Error processing message:", error);
         }
       })
-      .subscribe((status) => {
-        isConnectedRef.current = status === "SUBSCRIBED";
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
     return () => {
       channel.unsubscribe();
       channelRef.current = null;
-      isConnectedRef.current = false;
     };
   }, [pollId, onVoteReceived, onRevealResults, onShowLeaderboard]);
 
@@ -96,6 +91,5 @@ export function useVoteChannel(
     sendVote,
     sendRevealCommand,
     sendShowLeaderboard,
-    isConnected: isConnectedRef.current,
   };
 }

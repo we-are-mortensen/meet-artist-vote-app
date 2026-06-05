@@ -52,7 +52,6 @@ export default function Page() {
         pollId,
         correctParticipantId,
         participants,
-        status: "voting",
         artistVoted: false,
       };
 

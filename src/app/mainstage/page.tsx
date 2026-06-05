@@ -158,9 +158,8 @@ export default function Page() {
 
   if (view === "voting") {
     return (
-      <div className="min-h-screen bg-paper bg-confetti py-8 px-4">
+      <div className="min-h-screen bg-paper bg-confetti">
         <VotingProgress
-          voteCount={votes.length}
           participants={participants}
           votes={votes}
           correctParticipantId={pollState.correctParticipantId}

@@ -46,7 +46,7 @@ export default function Page() {
     try {
       const [events, freshParticipants] = await Promise.all([
         loadScoreEvents(pollState.pollId),
-        listParticipants(),
+        listParticipants({ includeInactive: true }),
       ]);
       setScoreEvents(events);
       setParticipants(freshParticipants);
@@ -130,7 +130,7 @@ export default function Page() {
           const [v, events, fresh] = await Promise.all([
             loadVotes(state.pollId),
             loadScoreEvents(state.pollId),
-            listParticipants(),
+            listParticipants({ includeInactive: true }),
           ]);
           setVotes(v);
           setScoreEvents(events);
@@ -160,7 +160,7 @@ export default function Page() {
     return (
       <div className="min-h-screen bg-paper bg-confetti">
         <VotingProgress
-          participants={participants}
+          participants={pollState.participants}
           votes={votes}
           correctParticipantId={pollState.correctParticipantId}
           artistVoted={pollState.artistVoted}
@@ -170,7 +170,7 @@ export default function Page() {
   }
 
   if (view === "results") {
-    const results = calculateResults(votes, participants, pollState.correctParticipantId);
+    const results = calculateResults(votes, pollState.participants, pollState.correctParticipantId);
     return (
       <div className="min-h-screen bg-paper bg-confetti py-8 px-4">
         <ResultsView results={results} artist={artist} />

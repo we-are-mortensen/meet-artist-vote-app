@@ -57,17 +57,29 @@ export default function Page() {
       setSidePanelClient(client);
 
       const startingState = await client.getActivityStartingState();
+      let activeSnapshot: Participant[] | null = null;
       if (startingState.additionalData) {
         try {
           const state = JSON.parse(startingState.additionalData) as PollState;
           setPollState(state);
           setIsHost(sessionStorage.getItem("hostOfPollId") === state.pollId);
+          activeSnapshot = state.participants;
         } catch (err) {
           console.error("Error parsing poll state:", err);
         }
       }
 
-      setIdentityState(getIdentity());
+      // The snapshot only contains active participants. If a stored identity is
+      // missing from it, that participant has been deactivated since their last
+      // visit — clear it so they land back on the identity picker (which lists
+      // only active participants) instead of voting as a deactivated identity.
+      const stored = getIdentity();
+      if (stored && activeSnapshot && !activeSnapshot.some((p) => p.id === stored.id)) {
+        clearIdentity();
+        setIdentityState(null);
+      } else {
+        setIdentityState(stored);
+      }
     }
     initialize();
   }, []);

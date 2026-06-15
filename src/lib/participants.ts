@@ -15,13 +15,29 @@ function rowToParticipant(row: ParticipantRow): Participant {
 }
 
 /**
- * Fetches all participants, ordered by name ascending.
+ * Fetches participants, ordered by name ascending.
+ *
+ * By default only active participants are returned — this is the list that
+ * feeds the host's artist dropdown, the identity picker, and the voting
+ * options, so deactivated participants disappear from all of them.
+ *
+ * Pass `includeInactive: true` to also return deactivated participants. The
+ * main stage uses this for the leaderboard, where inactive participants stay
+ * visible with their preserved (frozen) points.
  */
-export async function listParticipants(): Promise<Participant[]> {
-  const { data, error } = await supabase
+export async function listParticipants({
+  includeInactive = false,
+}: { includeInactive?: boolean } = {}): Promise<Participant[]> {
+  let query = supabase
     .from("participants")
     .select("id, name, points")
     .order("name", { ascending: true });
+
+  if (!includeInactive) {
+    query = query.eq("active", true);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Failed to load participants: ${error.message}`);

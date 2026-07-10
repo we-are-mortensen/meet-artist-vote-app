@@ -13,6 +13,7 @@ import IdentityPicker from "@/components/IdentityPicker";
 import PollQuestion from "@/components/PollQuestion";
 import OptionList from "@/components/OptionList";
 import VoteButton from "@/components/VoteButton";
+import DrawingUpload from "@/components/DrawingUpload";
 
 export default function Page() {
   const [, setSidePanelClient] = useState<MeetSidePanelClient>();
@@ -240,6 +241,8 @@ export default function Page() {
                 </p>
               </div>
             )}
+
+            {isHost && hasShownLeaderboard && <DrawingUpload pollId={pollState.pollId} />}
           </div>
         ) : hasRevealed ? (
           <div className="p-5 bg-crayon-purple/10 border-3 border-crayon-purple hand-drawn text-center">

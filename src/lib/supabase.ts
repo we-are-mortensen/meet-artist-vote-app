@@ -8,3 +8,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+/** Public Storage bucket that holds per-poll drawing images (shared with the dashboard app). */
+export const DRAWINGS_BUCKET = "drawings";

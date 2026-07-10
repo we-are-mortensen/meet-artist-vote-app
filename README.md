@@ -67,7 +67,8 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 
 ### Database setup
 
-Apply `supabase/migrations/0001_init_artist_vote.sql` once in the Supabase SQL editor. Then seed participants:
+Apply the migrations in `supabase/migrations/` **in order** (`0001` … `0006`) once in the
+Supabase SQL editor. Then seed participants:
 
 ```sql
 insert into public.participants (name) values
@@ -76,6 +77,15 @@ insert into public.participants (name) values
 ```
 
 Adjust the list to your team.
+
+**Row-Level Security.** `0006_enable_rls.sql` turns on RLS for all game tables and adds anon
+policies that keep the app working (read everything; insert/update `polls` and `votes` from the
+browser). It also makes `score_poll` `SECURITY DEFINER` so scoring can write `score_events` and
+`participants.points` without granting anon direct write to them. Because the app uses the
+public anon key in the browser, the permitted writes (creating polls, voting) are inherently
+open to anyone with that key — RLS blocks the worst cases (deletes, point forgery) but is not
+per-user auth. The companion dashboard project applies its own RLS for its extra tables/bucket
+against the same database.
 
 ## How a round works
 

@@ -94,6 +94,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-anon-key
 ```
 
+**Row-Level Security** is enabled by `supabase/migrations/0006_enable_rls.sql`. Anon can read all
+game tables and insert/update `polls` + `votes` from the browser; it has no direct write to
+`participants`/`score_events` — `score_poll` is `SECURITY DEFINER` and writes those as the owner.
+Realtime keeps working because the `select` policies let anon receive Postgres Changes on
+`participants`/`votes`/`polls`. If you add a new client-side write, it needs a matching policy.
+
 ## Google Meet Add-on Architecture
 
 ### Four Main Components

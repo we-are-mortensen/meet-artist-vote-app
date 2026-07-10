@@ -39,6 +39,24 @@ export async function saveVote(pollId: string, vote: Vote): Promise<void> {
   }
 }
 
+/** A vote plus the poll it belongs to — used to compute cross-poll stats (e.g. accuracy). */
+export type VoteWithPoll = { pollId: string; voterParticipantId: string; votedForId: string };
+
+/** Load every vote across all polls (for leaderboard guess-accuracy). */
+export async function loadAllVotes(): Promise<VoteWithPoll[]> {
+  const { data, error } = await supabase
+    .from("votes")
+    .select("poll_id, voter_participant_id, voted_for_id");
+  if (error) {
+    throw new Error(`Failed to load all votes: ${error.message}`);
+  }
+  return (data as VoteRow[]).map((r) => ({
+    pollId: r.poll_id,
+    voterParticipantId: r.voter_participant_id,
+    votedForId: r.voted_for_id,
+  }));
+}
+
 export async function loadVotes(pollId: string): Promise<Vote[]> {
   const { data, error } = await supabase
     .from("votes")

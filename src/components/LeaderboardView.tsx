@@ -6,6 +6,8 @@ import type { Participant } from "@/types/poll.types";
 type LeaderboardViewProps = {
   participants: Participant[];
   deltasByParticipantId: Record<string, number>;
+  /** Guess accuracy (0–1) per participant, used to break point ties. */
+  accuracyByParticipantId?: Record<string, number>;
 };
 
 const rowColors = [
@@ -21,8 +23,14 @@ const rowColors = [
 export default function LeaderboardView({
   participants,
   deltasByParticipantId,
+  accuracyByParticipantId = {},
 }: LeaderboardViewProps) {
-  const sorted = [...participants].sort((a, b) => b.points - a.points);
+  // Rank by points desc; break ties by guess accuracy desc (matches the dashboard).
+  const sorted = [...participants].sort(
+    (a, b) =>
+      b.points - a.points ||
+      (accuracyByParticipantId[b.id] ?? 0) - (accuracyByParticipantId[a.id] ?? 0)
+  );
   const badgeRefs = useRef<Record<string, HTMLSpanElement | null>>({});
 
   // Animate +N badges into view on mount.

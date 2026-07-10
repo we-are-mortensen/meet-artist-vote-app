@@ -39,6 +39,33 @@ export function calculateResults(
 }
 
 /**
+ * Guess accuracy per participant = correct guesses / total guesses, over that
+ * participant's votes on REVEALED polls (status !== "voting"). Participants with no
+ * such votes are absent from the map (treated as 0 by callers). This mirrors the
+ * dashboard's metric so both leaderboards break point-ties identically.
+ */
+export function guessAccuracyByParticipant(
+  votes: { pollId: string; voterParticipantId: string; votedForId: string }[],
+  polls: { id: string; correctParticipantId: string; status: string }[]
+): Record<string, number> {
+  const correctByPoll = new Map(
+    polls.filter((p) => p.status !== "voting").map((p) => [p.id, p.correctParticipantId])
+  );
+  const agg = new Map<string, { correct: number; total: number }>();
+  for (const v of votes) {
+    const correctId = correctByPoll.get(v.pollId);
+    if (correctId === undefined) continue; // vote on a not-yet-revealed poll
+    const a = agg.get(v.voterParticipantId) ?? { correct: 0, total: 0 };
+    a.total += 1;
+    if (v.votedForId === correctId) a.correct += 1;
+    agg.set(v.voterParticipantId, a);
+  }
+  const out: Record<string, number> = {};
+  for (const [id, { correct, total }] of agg) out[id] = total === 0 ? 0 : correct / total;
+  return out;
+}
+
+/**
  * Generates a unique poll ID with the legacy prefix scheme.
  */
 export function generatePollId(): string {

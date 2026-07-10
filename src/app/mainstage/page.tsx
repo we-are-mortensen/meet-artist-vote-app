@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { meet, MeetMainStageClient } from "@googleworkspace/meet-addons/meet.addons";
 import { CLOUD_PROJECT_NUMBER } from "@/shared/constants";
 import type { Participant, PollState, Vote, ScoreEvent } from "@/types/poll.types";
-import { calculateResults } from "@/utils/voteCalculations";
-import { loadVotes, subscribeToVotes } from "@/lib/votes";
+import { calculateResults, guessAccuracyByParticipant } from "@/utils/voteCalculations";
+import { loadVotes, loadAllVotes, subscribeToVotes } from "@/lib/votes";
 import { listParticipants, subscribeToParticipants } from "@/lib/participants";
-import { getPoll, subscribeToPoll } from "@/lib/polls";
+import { getPoll, listPolls, subscribeToPoll } from "@/lib/polls";
 import { loadScoreEvents } from "@/lib/scoring";
 import { useVoteChannel } from "@/hooks/useVoteChannel";
 import VotingProgress from "@/components/VotingProgress";
@@ -22,6 +22,7 @@ export default function Page() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [view, setView] = useState<View>("voting");
   const [scoreEvents, setScoreEvents] = useState<ScoreEvent[]>([]);
+  const [accuracyById, setAccuracyById] = useState<Record<string, number>>({});
 
   const handleVoteReceived = useCallback((vote: Vote) => {
     setVotes((prev) => {
@@ -44,12 +45,15 @@ export default function Page() {
   const handleShowLeaderboard = useCallback(async () => {
     if (!pollState) return;
     try {
-      const [events, freshParticipants] = await Promise.all([
+      const [events, freshParticipants, allVotes, allPolls] = await Promise.all([
         loadScoreEvents(pollState.pollId),
         listParticipants({ includeInactive: true }),
+        loadAllVotes(),
+        listPolls(),
       ]);
       setScoreEvents(events);
       setParticipants(freshParticipants);
+      setAccuracyById(guessAccuracyByParticipant(allVotes, allPolls));
       setView("leaderboard");
     } catch (err) {
       console.error("Error transitioning to leaderboard:", err);
@@ -127,14 +131,17 @@ export default function Page() {
           setView("results");
         } else {
           // scored
-          const [v, events, fresh] = await Promise.all([
+          const [v, events, fresh, allVotes, allPolls] = await Promise.all([
             loadVotes(state.pollId),
             loadScoreEvents(state.pollId),
             listParticipants({ includeInactive: true }),
+            loadAllVotes(),
+            listPolls(),
           ]);
           setVotes(v);
           setScoreEvents(events);
           setParticipants(fresh);
+          setAccuracyById(guessAccuracyByParticipant(allVotes, allPolls));
           setView("leaderboard");
         }
       } catch (err) {
@@ -190,6 +197,7 @@ export default function Page() {
       <LeaderboardView
         participants={participants}
         deltasByParticipantId={deltasByParticipantId}
+        accuracyByParticipantId={accuracyById}
       />
     </div>
   );

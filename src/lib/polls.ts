@@ -41,6 +41,17 @@ export async function createPoll(args: {
   }
 }
 
+/** List every poll (for cross-poll leaderboard stats like guess accuracy). */
+export async function listPolls(): Promise<PollRecord[]> {
+  const { data, error } = await supabase
+    .from("polls")
+    .select("id, correct_participant_id, status, artist_voted");
+  if (error) {
+    throw new Error(`Failed to list polls: ${error.message}`);
+  }
+  return (data as PollRow[]).map(rowToRecord);
+}
+
 export async function getPoll(pollId: string): Promise<PollRecord | null> {
   const { data, error } = await supabase
     .from("polls")

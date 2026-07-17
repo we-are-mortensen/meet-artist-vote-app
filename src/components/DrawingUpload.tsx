@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { uploadPollDrawing } from "@/lib/drawings";
+import { uploadPollDrawingImage } from "@/lib/drawings";
 
 const MAX_BYTES = 10 * 1024 * 1024; // ~10 MB — phone photos are large; iframe upload is slow.
 
@@ -10,7 +10,6 @@ type Props = { pollId: string };
 export default function DrawingUpload({ pollId }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -40,7 +39,7 @@ export default function DrawingUpload({ pollId }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const { publicUrl } = await uploadPollDrawing({ pollId, file, caption });
+      const { publicUrl } = await uploadPollDrawingImage({ pollId, file });
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
       setFile(null);
@@ -63,9 +62,6 @@ export default function DrawingUpload({ pollId }: Props) {
         <div className="bg-paper hand-drawn overflow-hidden">
           <img src={uploadedUrl} alt="Dibuix" className="w-full h-auto object-contain" />
         </div>
-        {caption.trim() && (
-          <p className="mt-3 text-text-secondary italic">&ldquo;{caption.trim()}&rdquo;</p>
-        )}
       </div>
     );
   }
@@ -83,15 +79,6 @@ export default function DrawingUpload({ pollId }: Props) {
           <span className="text-6xl">🖼️</span>
         )}
       </div>
-
-      <input
-        type="text"
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        disabled={busy}
-        placeholder="Descripció del dibuix (opcional)"
-        className="w-full p-3 mb-3 hand-drawn border-3 border-crayon-blue bg-paper font-body"
-      />
 
       <label className="block mb-4">
         <span className="font-heading font-bold">Tria un dibuix 🖼️</span>

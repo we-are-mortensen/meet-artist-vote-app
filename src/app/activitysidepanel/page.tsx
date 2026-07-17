@@ -14,6 +14,7 @@ import PollQuestion from "@/components/PollQuestion";
 import OptionList from "@/components/OptionList";
 import VoteButton from "@/components/VoteButton";
 import DrawingUpload from "@/components/DrawingUpload";
+import CaptionInput from "@/components/CaptionInput";
 
 export default function Page() {
   const [, setSidePanelClient] = useState<MeetSidePanelClient>();
@@ -281,6 +282,13 @@ export default function Page() {
             />
           </div>
         )}
+
+        {/* Artist-only caption editor. Appears at the same moment the host gets
+            the image uploader (hasShownLeaderboard), independent of whether the
+            artist voted. Image and caption merge into one poll_drawings row. */}
+        {!isHost &&
+          identity.id === pollState.correctParticipantId &&
+          hasShownLeaderboard && <CaptionInput pollId={pollState.pollId} />}
       </div>
     </div>
   );

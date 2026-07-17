@@ -123,8 +123,9 @@ Realtime keeps working because the `select` policies let anon receive Postgres C
    - Shown to all participants during the activity
    - First-load flow: `IdentityPicker` (dropdown + confirm button) lets the participant pick themselves from the participants table. Result stored under `localStorage` key `artistVote.identity` so identity persists across Meet sessions.
    - Returning visitor (identity already in storage) skips the picker. Persistent `IdentityHeader` displays their name + live points, subscribing to Postgres Changes on `participants` so points update without reloads.
-   - Every participant — including today's artist — sees the same `OptionList` voting UI. Submitting upserts a row into `votes` keyed by `(poll_id, voter_participant_id)` — "last vote wins" until the host reveals. **Artist exception:** if the voter's identity matches `polls.correct_participant_id`, the client renders the confirmation screen but skips the broadcast and the DB write, so the artist's screen is indistinguishable from anyone else's without leaking a vote.
-   - **Host-only controls** (visible when `sessionStorage.getItem('hostOfPollId') === pollId`): two sequential buttons. "Revelar resultats" flips `polls.status` to `revealed` and broadcasts `REVEAL_RESULTS`; "Mostrar puntuació" calls the `score_poll` RPC and broadcasts `SHOW_LEADERBOARD`.
+   - The render branches on host status: `isHost ? <host controls> : <voter view>`.
+   - **Voters (non-host)** see the `OptionList` voting UI. Submitting upserts a row into `votes` keyed by `(poll_id, voter_participant_id)` — "last vote wins" until the host reveals. **Artist exception:** if the voter's identity matches `polls.correct_participant_id`, the client renders the confirmation screen but skips the broadcast and the DB write (it flips `polls.artist_voted` instead), so the artist's screen is indistinguishable from anyone else's without leaking a vote.
+   - **Host** sees **no ballot at all** — just the reveal controls, rendered independently of any vote. Two sequential buttons: "Revelar resultats" flips `polls.status` to `revealed` and broadcasts `REVEAL_RESULTS`; "Mostrar puntuació" calls the `score_poll` RPC and broadcasts `SHOW_LEADERBOARD`. After scoring, `DrawingUpload` appears. Host status is `sessionStorage.getItem('hostOfPollId') === pollId`. Because the host never votes, they linger in the main stage's "Falten per votar" list until reveal (accepted trade-off — see Host vs artist note).
    - Voting cuts off at reveal — late voters get a closed state.
 
 4. **Main Stage** ([src/app/mainstage/page.tsx](src/app/mainstage/page.tsx))
@@ -139,8 +140,8 @@ Realtime keeps working because the `select` policies let anon receive Postgres C
 The app implements a gamified daily round of "Qui és l'artista d'avui?":
 - **Poll Setup**: Host loads participants from Supabase and picks today's artist from a dropdown; pressing "Començar votació" creates a `polls` row and starts the activity
 - **Identity**: Each participant picks themselves once on first load via a dropdown; identity persists in `localStorage` so it survives the Meet iframe being torn down between calls, and drives the live points header
-- **Voting**: Identified votes (`voter_participant_id`, `voted_for_id`); the artist sees the same voting UI as everyone else, but their submit is short-circuited client-side (no DB write, no broadcast) so observers can't spot the artist by walking through identities
-- **Two-stage Reveal**: Host first reveals the correct answer + the list of correct guessers; then triggers scoring, which transitions the main stage to a leaderboard
+- **Voting**: Identified votes (`voter_participant_id`, `voted_for_id`); a non-host artist sees the same voting UI as everyone else, but their submit is short-circuited client-side (no DB write, no broadcast) so observers can't spot the artist by walking through identities. The **host sees no ballot** — they don't vote, they just drive the reveal
+- **Two-stage Reveal**: The host's controls are independent of voting (no vote required); the host first reveals the correct answer + the list of correct guessers, then triggers scoring, which transitions the main stage to a leaderboard
 - **Scoring**: Server-side `score_poll` RPC implements Dixit-adapted rules with SQL-tunable constants; results are persisted via `score_events` rows and aggregated on `participants.points`
 - **Data Flow**: Supabase Realtime Broadcast for poll events + Postgres Changes on `participants` for live point updates
 - **Host Detection**: `sessionStorage` (`hostOfPollId`) tracks which browser tab started the poll
@@ -178,7 +179,8 @@ npm start
 
 ### Voting System
 - **Identified votes**: every row in `votes` stores `poll_id`, `voter_participant_id`, `voted_for_id`, and a timestamp. There is no anonymous fallback.
-- **Artist exception**: the participant whose identity matches `polls.correct_participant_id` sees the same voting UI as everyone else, but their submit is short-circuited client-side — the local `hasVoted` state flips and the "Has votat per X" confirmation renders, but no row is written to `votes` and no `VOTE_CAST` event is broadcast. This keeps the artist's screen indistinguishable from any other participant's so observers can't snoop the answer by walking through identities. The host should still avoid picking themselves as the artist (see Host vs artist note below).
+- **Artist exception** (non-host artist): the participant whose identity matches `polls.correct_participant_id` sees the same voting UI as everyone else, but their submit is short-circuited client-side — the local `hasVoted` state flips and the "Has votat per X" confirmation renders, but no row is written to `votes` and no `VOTE_CAST` event is broadcast (it flips `polls.artist_voted` instead so the main stage can drop them from "Falten per votar"). This keeps the artist's screen indistinguishable from any other participant's so observers can't snoop the answer by walking through identities. The host should still avoid picking themselves as the artist (see Host vs artist note below).
+- **Host has no ballot**: when `sessionStorage.hostOfPollId === pollId`, the activity panel renders only the reveal controls — no `OptionList`, no `VoteButton`. The host drives the round without voting; this is deliberate so the host (who knows the answer) can't cast a scoring vote through the UI.
 - **One vote per voter per poll**: the table has a unique constraint on `(poll_id, voter_participant_id)`. Submissions UPSERT, so "last vote wins" until reveal.
 - **Cutoff**: once the host flips `polls.status` to `revealed`, the activity panel shows the closed state and stops accepting changes.
 
@@ -191,10 +193,12 @@ npm start
 The app uses `sessionStorage` to reliably identify the activity host:
 1. When the initiator clicks "Començar votació" in sidepanel, the `pollId` is saved to sessionStorage as `hostOfPollId`
 2. After redirect to activitysidepanel, the stored `pollId` is compared with the current poll's ID
-3. If they match, the user is the host and sees host-only features (the "Revelar resultats" and "Mostrar puntuació" buttons)
+3. If they match, the user is the host and sees the host-only view (the "Revelar resultats" and "Mostrar puntuació" buttons, then `DrawingUpload`) instead of a ballot
 4. This approach handles multiple activities in the same browser session correctly
 
-**Host vs artist:** The host should not pick themselves as today's artist. The artist sees the regular voting UI and their submit is silently dropped, so if the host is also the artist their first submit won't actually do anything beyond unlocking the local "Has votat" branch where the host buttons live — they'll still appear, but the artist's vote (the host's own "real" vote) was never recorded. Either pick a different artist or have a second host identity ready.
+**Host vs artist:** The host should not pick themselves as today's artist. The host has no ballot, so a host-artist could never flip `polls.artist_voted` (that only happens when the artist submits the voting UI) — the main stage would keep the artist listed under "Falten per votar" all round. Pick a different artist.
+
+**Host in "Falten per votar":** Because the host never votes, their name lingers in the main stage's remaining-voters list until reveal, and "Tothom ha votat! 🎉" won't fire while the host is present. This is an accepted trade-off of keeping the host's controls vote-free — the main stage has no way to know who the host is (host detection lives only in the activity panel's `sessionStorage`).
 
 ### Data Flow
 ```
@@ -207,9 +211,9 @@ Setup Side Panel (host)
 Activity Side Panel
   ↓ IdentityPicker (first time, dropdown) → localStorage.artistVote.identity
   ↓ IdentityHeader (live points via Postgres Changes)
-  ↓ everyone sees the same vote UI (artist included)
-  ↓ vote: non-artist → UPSERT votes (voter, votedFor, ts), broadcast VOTE_CAST
-  ↓        artist     → no DB write, no broadcast (local UI only)
+  ↓ non-host → vote UI ; host → reveal controls only (no ballot)
+  ↓ vote: non-artist    → UPSERT votes (voter, votedFor, ts), broadcast VOTE_CAST
+  ↓        artist        → no DB write, no broadcast; flip polls.artist_voted
   ↓ host reveals: UPDATE polls.status='revealed', broadcast REVEAL_RESULTS
   ↓ host shows points: rpc score_poll(pollId), broadcast SHOW_LEADERBOARD
 Main Stage
